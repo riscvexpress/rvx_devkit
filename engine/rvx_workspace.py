@@ -1295,7 +1295,7 @@ class RvxWorkspace():
     self.imp_fpga_after_build(platform_name, app_name, target_imp_class, build_mode, imp_instance_path)
     #
     if not self.is_printf_running():
-      self.imp_fpga_printf(target_imp_class, imp_instance_path, asserts_when_error=False)
+      self.imp_fpga_printf_check(target_imp_class, imp_instance_path, asserts_when_error=False)
     #
     script = imp_instance_path / f'run_{app_name}.tcl'
     assert script.is_file(), script
@@ -1405,7 +1405,7 @@ class RvxWorkspace():
   
   def _imp_fpga_run_verify(self, platform_name:str, app_name:str, target_imp_class:str, build_mode:str, imp_instance_path:Path, printf_dump_path:Path) -> bool:
     printf_dump_path.unlink(missing_ok=True)
-    self.imp_fpga_printf(target_imp_class, imp_instance_path)
+    self.imp_fpga_printf_check(target_imp_class, imp_instance_path)
     self.imp_fpga_run(platform_name, app_name, target_imp_class, build_mode, imp_instance_path)
     self.wait_app_finish_on_fpga(printf_dump_path)
     self.backup_app_log(printf_dump_path, app_name)
@@ -1665,6 +1665,12 @@ class RvxWorkspace():
     remove_directory(ila_result_path)
 
   def imp_fpga_printf(self, target_imp_class:str, imp_instance_path:Path, asserts_when_error=True):
+    self._imp_fpga_printf(target_imp_class, imp_instance_path, asserts_when_error, waits_when_error=False)
+
+  def imp_fpga_printf_check(self, target_imp_class:str, imp_instance_path:Path, asserts_when_error=True):
+    self._imp_fpga_printf(target_imp_class, imp_instance_path, asserts_when_error, waits_when_error=True)
+
+  def _imp_fpga_printf(self, target_imp_class:str, imp_instance_path:Path, asserts_when_error:bool, waits_when_error:bool):
     self.kill_printf_if_exsit()
     imp_dict = self.imp_class.get_imp_class_info(target_imp_class)
     if is_linux:
@@ -1694,7 +1700,7 @@ class RvxWorkspace():
         cmd = f'minicom -D {target_ttyusb}'
       cmd = make_cmd_sudo(cmd, self.devkit.get_sudo_passwd())
       if self.devkit.is_called_by_gui or self.config.shows_printf_in_terminal:
-        run_shell_cmd_with_terminal(cmd, imp_instance_path)
+        run_shell_cmd_with_terminal(cmd, imp_instance_path, waits_when_error=waits_when_error)
       else:
         run_shell_cmd(cmd, imp_instance_path, asserts_when_error=asserts_when_error)
     else:

@@ -172,13 +172,19 @@ def generate_rtl_module(dec_ip, imp_class_info:dict, elaborated_clock_info):
         line_list.append('')
     elif imp_type=='fpga':
       line_list.append('')
+      if elaborated_clock_info.external_clk_diff:
+        line_list.append('wire external_clk_ibuf;')
+        line_list.append('wire external_clk_bufg;')
+        line_list.append('')
+        line_list.append('IBUFDS i_external_clk_ibufds (.O(external_clk_ibuf), .I(external_clk), .IB(external_clk_pair));')
+        line_list.append('BUFG i_external_clk_bufg (.O(external_clk_bufg), .I(external_clk_ibuf));')
+        line_list.append('')
       xci_module_name = get_xci_module_name(dec_ip)
       line_list.append(xci_module_name)
       line_list.append(f'i_{xci_module_name}')
       line_list.append('(')
       if elaborated_clock_info.external_clk_diff:
-        line_list.append('\t.clk_in1_p(external_clk),')
-        line_list.append('\t.clk_in1_n(external_clk_pair),')
+        line_list.append('\t.clk_in1(external_clk_bufg),')
       else:
         line_list.append('\t.clk_in1(external_clk),')
       line_list.append(',\n'.join([f'\t.{clk_name}({clk_name})' for clk_name in [speed2name(clk_speed) for clk_speed in elaborated_clock_info.pll_clock_speed_set]]))
@@ -239,8 +245,7 @@ def generate_tcl_script(dec_ip, imp_class_info:dict, elaborated_clock_info):
   property_list.append(('PRIMARY_PORT', 'clk_in1'))
   property_list.append(('PRIM_IN_FREQ', make_mhz(elaborated_clock_info.external_clk_speed)))
   if elaborated_clock_info.external_clk_diff:
-    property_list.append(('PRIM_SOURCE', 'Differential_clock_capable_pin'))
-    property_list.append(('CLK_IN1_BOARD_INTERFACE', 'sys_diff_clock'))
+    property_list.append(('PRIM_SOURCE', 'No_buffer'))
     property_list.append(('USE_LOCKED', 'false'))
     property_list.append(('USE_RESET', 'false'))
   for index, clk_speed in enumerate(elaborated_clock_info.pll_clock_speed_set):

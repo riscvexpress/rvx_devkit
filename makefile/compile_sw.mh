@@ -40,7 +40,7 @@ endif
 
 USE_FREERTOS ?= false
 ifeq ($(USE_FREERTOS),true)
-	-include ${RVX_SSW_HOME}/FreeRTOS/env/set_env.mh
+	-include ${RVX_SSW_HOME}/third_party/FreeRTOS/env/set_env.mh
 endif
 
 USE_TEXT_PARSER ?= false
@@ -48,7 +48,7 @@ ifeq ($(USE_TEXT_PARSER),true)
   ifeq ($(USE_FAKEFILE),false)
     $(error enable USE_FAKEFILE in rvx_each.mh)
   endif
-	-include ${RVX_SSW_HOME}/text_parser/env/set_env.mh
+	-include ${RVX_SSW_HOME}/third_party/text_parser/env/set_env.mh
 endif
 
 USE_NPX ?= false
@@ -64,7 +64,7 @@ endif
 
 USE_DARKNET ?= false
 ifeq ($(USE_DARKNET),true)
-	-include ${RVX_SSW_HOME}/darknet/env/set_env.mh
+	-include ${RVX_SSW_HOME}/third_party/darknet/env/set_env.mh
 endif
 
 ifndef USE_GENERATED

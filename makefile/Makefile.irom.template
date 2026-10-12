@@ -22,9 +22,9 @@ include ${RVX_BINARY_HOME}/rvx_config_compiler.mh
 ORIGINAL_FILE_LIST=./Makefile
 include ${RVX_UTIL_HOME}/distclean.mh
 
-include ${RVX_SSW_HOME}/core/irom/set_env.mh
-include ${RVX_SSW_HOME}/api/munoc/env/set_env.mh
-include ${RVX_SSW_HOME}/api/platform_controller/env/set_env.mh
+include ${RVX_SSW_HOME}/boot/env/set_env.mh
+include ${RVX_SSW_HOME}/driver/munoc/env/set_env.mh
+include ${RVX_SSW_HOME}/driver/platform_controller/env/set_env.mh
 INCLUDES += -I${RVX_SSW_HOME}/memorymap
 
 INFO_DIR = ../../ssw/src
@@ -36,7 +36,7 @@ INCLUDES += -I${INFO_DIR}
 all: compile_irom gen_irom_header
 
 compile_irom:
-	@$(CC) $(CFLAGS) $(INCLUDES) -c ${RVX_SSW_HOME}/irom/general_irom.S -o irom.elf
+	@$(CC) $(CFLAGS) $(INCLUDES) -c ${RVX_SSW_HOME}/boot/src/general_irom.S -o irom.elf
 	@$(OBJDUMP) -D irom.elf > irom.dump
 	@$(CROSS_COMPILE)strip -O binary irom.elf -o irom.bin
 	@xxd -c4 -g4 -ps irom.bin > irom.hex

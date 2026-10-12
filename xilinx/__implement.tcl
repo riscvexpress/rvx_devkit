@@ -96,6 +96,8 @@ report_utilization -hierarchical  -file ${IMP_RESULT_DIR}/route_util_hier.rpt
 report_power -file ${IMP_RESULT_DIR}/route_power.rpt
 report_power -hier all -hierarchical_depth 10 -file ${IMP_RESULT_DIR}/route_power_hier.rpt
 report_io -file ${IMP_RESULT_DIR}/route_io.rpt 
+report_cdc -file ${IMP_RESULT_DIR}/route_cdc.rpt
+report_cdc -details -file ${IMP_RESULT_DIR}/route_cdc_details.rpt
 write_verilog -force ${IMP_RESULT_DIR}/${TOP_MODULE}.v
 
 ###############

@@ -436,6 +436,8 @@ if __name__ == '__main__':
 
     elif cmd_list[1]=='printf':
       rvx_workspace.imp_fpga_printf(args.target_imp_class, imp_instance_path)
+    elif cmd_list[1]=='printf_check':
+      rvx_workspace.imp_fpga_printf_check(args.target_imp_class, imp_instance_path)
 
     elif cmd_list[1]=='run_ocd':
       rvx_workspace.imp_fpga_run_ocd(args.target_imp_class, imp_instance_path)

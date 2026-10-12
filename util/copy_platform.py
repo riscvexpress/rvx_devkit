@@ -1,8 +1,33 @@
 import argparse
+import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+def rename_all(base_path:Path, before:str, after:str):
+  conv_dict = {}
+  for convert in (str.lower, str.upper, str.capitalize, str.title):
+    conv_dict[convert(before)] = convert(after)
+  re_conv = re.compile('|'.join(re.escape(x) for x in sorted(conv_dict, key=len, reverse=True)))
+  replace = lambda text: re_conv.sub(lambda x: conv_dict[x.group()], text)
+
+  path_list = sorted(base_path.rglob('*'), key=lambda x: len(x.parts), reverse=True)
+  for path_object in path_list:
+    if path_object.is_file() and not path_object.is_symlink():
+      try:
+        contents = path_object.read_bytes().decode('utf8')
+      except UnicodeDecodeError:
+        continue
+      new_contents = replace(contents)
+      if new_contents!=contents:
+        path_object.write_bytes(new_contents.encode('utf8'))
+  for path_object in path_list:
+    new_name = replace(path_object.name)
+    if new_name!=path_object.name:
+      new_path = path_object.parent / new_name
+      assert not new_path.exists(), new_path
+      path_object.rename(new_path)
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Copy a platform')
@@ -23,12 +48,11 @@ if __name__ == '__main__':
   assert input_xml.is_file(), input_xml
 
   print(f'copy {input_path} -> {output_path}', flush=True)
-  shutil.copytree(input_path, output_path, symlinks=True)
-
-  output_xml = output_path / f'{output_name}.xml'
-  (output_path / input_xml.name).rename(output_xml)
-  contents = output_xml.read_text(encoding='utf8')
-  output_xml.write_text(contents.replace(f'<name>{input_name}</name>', f'<name>{output_name}</name>', 1), encoding='utf8')
+  removed_list = ('.log', '.rvedata', 'arch', 'fpga_component')
+  ignore = lambda directory, names: [x for x in names if Path(directory)==input_path and x in removed_list]
+  shutil.copytree(input_path, output_path, symlinks=True, ignore=ignore)
+  rename_all(output_path, input_name, output_name)
+  assert (output_path / f'{output_name}.xml').is_file()
 
   result = subprocess.run(['make', '--no-print-directory', 'clean'], cwd=output_path)
   sys.exit(result.returncode)
