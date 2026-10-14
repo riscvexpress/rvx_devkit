@@ -39,7 +39,7 @@ compile_irom:
 	@$(CC) $(CFLAGS) $(INCLUDES) -c ${RVX_SSW_HOME}/boot/src/general_irom.S -o irom.elf
 	@$(OBJDUMP) -D irom.elf > irom.dump
 	@$(CROSS_COMPILE)strip -O binary irom.elf -o irom.bin
-	@xxd -c4 -g4 -ps irom.bin > irom.hex
+	@${PYTHON3_CMD} -c "d=open('irom.bin','rb').read(); open('irom.hex','w',newline='\n').write(''.join(d[i:i+4].hex()+'\n' for i in range(0,len(d),4)))"
 
 gen_irom_header:
 	@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/generate_rom_header.py -hex_file irom.hex -hex_be -width 32 -p irom -od ${RESULT_DIR}
