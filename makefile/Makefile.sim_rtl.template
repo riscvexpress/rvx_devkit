@@ -24,7 +24,7 @@ include ${RVX_UTIL_HOME}/template_makefile.mh
 
 -include ../user/sim/env/set_sim_env.mh
 
-ORIGINAL_FILE_LIST=./Makefile ./src ./set_path.mh ./set_sim_env.mh ./run.tcl ./debug.tcl ./run.do ./debug.do ./rvx_each.mh
+ORIGINAL_FILE_LIST=./Makefile ./.gitignore ./src ./set_path.mh ./set_sim_env.mh ./run.tcl ./debug.tcl ./run.do ./debug.do ./rvx_each.mh
 include ${RVX_UTIL_HOME}/distclean.mh
 
 PLATFORM_DIR = $(abspath ${CURDIR}/..)

@@ -72,7 +72,7 @@ class RvxConfig():
         assert config_file.is_file(), config_file
         var_dict = {'RVX_RELEASE_HOME': self.home_path.as_posix()}
         for line in config_file.read_text(encoding='utf8').splitlines():
-            match = re.match(r'^\s*(\w+_HOME)\s*(\??=)\s*(\S+)\s*$', line)
+            match = re.match(r'^\s*(\w+_HOME)\s*(\??=)\s*(\S*)\s*$', line)
             if not match:
                 continue
             name, assign, value = match.groups()
@@ -82,7 +82,7 @@ class RvxConfig():
             var_dict[name] = value
             path = Path(value)
             attr_name = re.sub(r'^RVX_|(_HW)?_HOME$', '', name).lower() + '_path'
-            setattr(self, attr_name, path if path.is_dir() else None)
+            setattr(self, attr_name, path if value and path.is_dir() else None)
         assert self.devkit_path, config_file
 
     @staticmethod

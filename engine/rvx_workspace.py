@@ -762,11 +762,17 @@ class RvxWorkspace():
     var_dict = {}
     var_dict['RVX_HWLIB_BASIC_HOME'] = self.config.hwlib_basic_path
     var_dict['RVX_HWLIB_SPECIAL_HOME'] = self.config.hwlib_special_path
-    var_dict['MUNOC_HW_HOME'] = self.config.munoc_path
-    for ip_name in ('starc', 'dca'):
-      candidate_list = [self._get_user_path(platform_name) / ip_name,
-                        getattr(self.config, f'{ip_name}_path')]
-      var_dict[f'{ip_name.upper()}_HW_HOME'] = select_path(candidate_list, False)
+    predifined_path_dict = {
+      'munoc': self.config.hwlib_basic_path / 'munoc',
+      'dca': self.config.hwlib_special_path / 'dca' if self.config.hwlib_special_path else None,
+      'starc': self.config.hwlib_special_path / 'starc' if self.config.hwlib_special_path else None
+    }  
+    for ip_name, predifined_path in predifined_path_dict.items():
+      ip_name_home_path_name = f'{ip_name.upper()}_HW_HOME'
+      candidate_list = [ get_path_from_os_env(ip_name_home_path_name),
+                        self._get_user_path(platform_name) / ip_name,
+                        predifined_path]
+      var_dict[ip_name_home_path_name] = select_path(candidate_list, False)
     return var_dict
 
   def sim_rtl_path(self, platform_name:str, imp_instance_path:Path):
@@ -1243,7 +1249,7 @@ class RvxWorkspace():
       configure_template_file(template_file, output_file, config_list)
 
   def imp_fpga_clean(self, platform_name:str, target_imp_class:str, imp_instance_path:Path):
-    exclude_list = set(('Makefile','each_imp.mh','src','include','xci', 'ila', 'set_fpga.tcl', 'set_design.tcl', 'set_fpga_imp_env.tcl', 'set_fpga_syn_env.tcl',
+    exclude_list = set(('Makefile', '.gitignore', 'each_imp.mh','src','include','xci', 'ila', 'set_fpga.tcl', 'set_design.tcl', 'set_fpga_imp_env.tcl', 'set_fpga_syn_env.tcl',
                         self.imp_fpga_set_path_path(imp_instance_path).name, 'set_ocd_env.tcl', 'gen_mcs.tcl', 'set_config_memory.tcl', f'{target_imp_class}.cfg',
                         'create_generated_clock.tcl', 'set_false_path.tcl','set_tool_option.tcl', 'syn_manually.tcl', 'pnr_manually.tcl', 'set_sdram_config.tcl',f'{platform_name}.xml'))
     RvxWorkspace.__clean(imp_instance_path,exclude_list)
@@ -1537,6 +1543,15 @@ class RvxWorkspace():
       run_shell_cmd_with_terminal(cmd, imp_instance_path)
     else:
       self.imp_fpga___imp(platform_name, target_imp_class, imp_instance_path)
+
+  def imp_fpga_imp_route_opt(self, imp_instance_path:Path):
+    result_path = RvxWorkspace.imp_fpga_result_path(imp_instance_path)
+    vivado_imp_log = RvxWorkspace.imp_fpga_imp_log(imp_instance_path)
+    cmd = 'vivado -mode batch -source {0}'.format(self.devkit.get_devkit_path('xilinx','route_opt.tcl'))
+    run_shell_cmd(cmd, imp_instance_path, stdout=None, stderr=None, asserts_when_error=False)
+    with open(vivado_imp_log, 'a', encoding='utf8') as f:
+      f.write((imp_instance_path/'vivado.log').read_text(encoding='utf8'))
+    self.imp_fpga_check_imp(imp_instance_path)
 
   def imp_fpga_imp_request(self, imp_instance_path:Path):
     self.imp_fpga_imp(imp_instance_path)

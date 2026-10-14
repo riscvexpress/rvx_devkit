@@ -39,12 +39,8 @@ ALL_APP_CFG_NAME_LIST=$(basename $(notdir ${ALL_APP_CFG_LIST}))
 PARA_DIR ?= ${CURDIR}/result
 PARA_DIR_ABS = $(abspath ${PARA_DIR})
 
-XARVIS_GIT_VERSION_STABLE=915c1b
-XARVIS_GIT_VERSION?=${XARVIS_GIT_VERSION_STABLE}
-
 check:
 	@echo ${XARVIS_NPX_TRANIER_HOME}
-	@echo ${XARVIS_GIT_VERSION}
 	@echo ${APP_CFG_DIR_ABS}
 	@echo ${ALL_APP_CFG_NAME_LIST}
 	@echo ${PARA_DIR_ABS}
@@ -55,12 +51,6 @@ config:
 
 clean:
 	@true
-
-setup: setup_xarvis
-
-setup_xarvis:
-	@cd ${XARVIS_HOME} && git pull origin master
-	@cd ${XARVIS_HOME} && git checkout ${XARVIS_GIT_VERSION}
 
 NUM_SAMPLE=1
 

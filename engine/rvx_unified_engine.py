@@ -417,6 +417,8 @@ if __name__ == '__main__':
         assert 0, cmd_list
     elif cmd_list[1]=='reimp':
       rvx_workspace.imp_fpga_reimp(platform_name, args.target_imp_class, imp_instance_path)
+    elif cmd_list[1]=='imp_route_opt':
+      rvx_workspace.imp_fpga_imp_route_opt(imp_instance_path)
 
     elif cmd_list[1]=='check_imp' or cmd_list[1]=='check':
       rvx_workspace.imp_fpga_check_imp(imp_instance_path)

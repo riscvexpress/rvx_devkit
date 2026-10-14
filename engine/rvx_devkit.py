@@ -126,7 +126,12 @@ class RvxDevkit():
     return get_git_version(self.config.devkit_path)
 
   def rvx_version(self):
-    return f'{self.home_git_info()} ({get_git_date(self.config.home_path)})'
+    git_date = ''.join(get_git_date(self.config.home_path).split('-')[0:3])
+    contents = f'RVX version: {git_date}-{self.home_git_info()}'
+    expire_date_file = self.config.synthesizer_path / 'expire_date.txt'
+    expire_date = expire_date_file.read_text().strip() if expire_date_file.is_file() else 'permanent'
+    contents += f'\nExpire date: {expire_date}'
+    return contents
 
   def username(self):
     return getpass.getuser()
