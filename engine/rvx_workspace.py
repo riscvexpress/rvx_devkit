@@ -267,11 +267,22 @@ class RvxWorkspace():
     compile_list = self.__generate_system_compile_list(build_path)
     compile_list += compile_list_path.read_text(encoding='utf8').split('\n')
 
+    var_cache = {}
+    def expand_var(match):
+      var = match.group(1) or match.group(2)
+      if var not in var_cache:
+        value = os.environ.get(var) or get_makefile_var(var, build_path)
+        assert value, f'undefined variable \'{var}\' in {compile_list_path}'
+        var_cache[var] = value
+      return var_cache[var]
+
     compile_dir_list = []
     for compile_target in compile_list:
+      compile_target = compile_target.strip()
       if compile_target:
-        allowed_type, dir = compile_target.split(':')
+        allowed_type, dir = compile_target.split(':', 1)
         if allowed_type=='all' or allowed_type==target_imp_class:
+          dir = re.sub(r'\$\{(\w+)\}|\$\((\w+)\)', expand_var, dir)
           path = Path(dir)
           if not path.is_absolute():
             path = (compile_list_path.parent / path).resolve()
@@ -825,6 +836,8 @@ class RvxWorkspace():
       debug_script = sim_path / 'debug.tcl'
       if not debug_script.is_file():
         debug_script.write_text('log_wave -recursive *\nrun all\nquit\n', encoding='utf8')
+    elif self.config.rtl_simulator=='verilator':
+      pass
     else:
       assert 0, 'Please check .rvx_tool_config'
   
@@ -1417,6 +1430,8 @@ class RvxWorkspace():
     self.backup_app_log(printf_dump_path, app_name)
     
     result = self.get_app_return_from_log(printf_dump_path)
+    if not result:
+      self.stop_printf_for_check()
     if result:
       contents = f'\'{app_name}\' is verified'
     else:
@@ -1462,16 +1477,16 @@ class RvxWorkspace():
     printf_dump_path = Path(self.config.printf_log_filename)
     self.wait_app_finish_on_fpga(printf_dump_path)
 
-  def kill_process_on_linux(self, process_name:str) -> None:
+  def kill_process_on_linux(self, process_name:str, signal:str='9') -> None:
       assert is_linux
-      cmd = make_cmd_sudo(f'pkill -9 {process_name}', self.devkit.get_sudo_passwd())
+      cmd = make_cmd_sudo(f'pkill -{signal} {process_name}', self.devkit.get_sudo_passwd())
       run_shell_cmd(cmd, self.devkit_path)
       while is_process_running(process_name): time.sleep(1)
   
   def kill_process_if_exsit_on_linux(self, process_name:str) -> None:
     assert is_linux
     if is_process_running(process_name):
-      kill_process_on_linux(process_name)
+      self.kill_process_on_linux(process_name)
 
   def is_printf_running(self) -> bool:
     if is_linux:
@@ -1498,6 +1513,10 @@ class RvxWorkspace():
         subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(1)
   
+  def stop_printf_for_check(self) -> None:
+    if is_linux and self.is_printf_running():
+      self.kill_process_on_linux('minicom', 'TERM')
+
   def kill_openocd_if_exsit(self) -> None:
     self.kill_process_if_exsit_on_linux('openocd_rvp')
   

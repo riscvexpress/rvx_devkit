@@ -25,7 +25,17 @@ if {![file exist ${IMP_RESULT_DIR}/routed.dcp]} {
 }
 
 open_checkpoint ${IMP_RESULT_DIR}/routed.dcp
-phys_opt_design -directive AggressiveExplore
+foreach directive {AggressiveExplore AlternateReplication AggressiveFanoutOpt AggressiveExplore} {
+	set wns [get_setup_wns]
+	puts "\[INFO\] WNS ${wns}"
+	if {$wns >= 0} {
+		break
+	}
+	if {[catch {phys_opt_design -directive $directive} msg]} {
+		puts "\[WARNING\] phys_opt_design -directive ${directive} failed: ${msg}"
+	}
+}
+puts "\[INFO\] WNS [get_setup_wns]"
 write_checkpoint -force ${IMP_RESULT_DIR}/routed
 
 source ${RVX_DEVKIT_HOME}/xilinx/__write_imp_result.tcl

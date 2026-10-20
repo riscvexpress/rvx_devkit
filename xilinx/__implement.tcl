@@ -67,21 +67,28 @@ if {[file exist ${MANUAL_PNR_IMPDIR_FILE}]} {
 	puts "\[INFO\] Place and route using manual options from user dir"
 	source ${MANUAL_PNR_USER_FILE}
 } else {
-	puts "\[INFO\] Place and route quickly"
+	puts "\[INFO\] Place and route"
 	if [string equal ${OPT_DESIGN_OPTION} {}] {
 		opt_design
 	} else {
 		eval [concat {opt_design} ${OPT_DESIGN_OPTION}]
 	}
 	if [string equal ${PLACE_DESIGN_OPTION} {}] {
-		place_design
+		place_design -directive Explore
 	} else {
 		eval [concat {place_design} ${PLACE_DESIGN_OPTION}]
 	}
+	touch ${IMP_RESULT_DIR}/place_top
+	if {[get_setup_wns] < 0} {
+		phys_opt_design -directive AggressiveExplore
+	}
 	if [string equal ${ROUTE_DESIGN_OPTION} {}] {
-		route_design
+		route_design -directive Explore
 	} else {
 		eval [concat {route_design} ${ROUTE_DESIGN_OPTION}]
+	}
+	if {[get_setup_wns] < 0} {
+		phys_opt_design -directive AggressiveExplore
 	}
 }
 touch ${IMP_RESULT_DIR}/route_top

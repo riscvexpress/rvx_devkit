@@ -58,7 +58,7 @@ if __name__ == '__main__':
           print(pre1)
           print(pre2)
       break
-    elif args.tool=='modelsim' or args.tool=='questa' or args.tool=='xsim':
+    elif args.tool=='modelsim' or args.tool=='questa' or args.tool=='xsim' or args.tool=='verilator':
       break
     else:
       assert 0, args.tool

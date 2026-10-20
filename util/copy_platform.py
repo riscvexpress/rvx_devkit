@@ -49,7 +49,8 @@ if __name__ == '__main__':
 
   print(f'copy {input_path} -> {output_path}', flush=True)
   removed_list = ('.log', '.rvedata', 'arch', 'fpga_component')
-  ignore = lambda directory, names: [x for x in names if Path(directory)==input_path and x in removed_list]
+  re_editor_temp = re.compile(r'.*(\.sw[a-p]|\.un~|~)$')
+  ignore = lambda directory, names: [x for x in names if (Path(directory)==input_path and x in removed_list) or re_editor_temp.match(x)]
   shutil.copytree(input_path, output_path, symlinks=True, ignore=ignore)
   rename_all(output_path, input_name, output_name)
   assert (output_path / f'{output_name}.xml').is_file()

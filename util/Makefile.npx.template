@@ -23,6 +23,8 @@ include ${RVX_UTIL_HOME}/template_makefile.mh
 
 -include ./rvx_each.mh
 
+NPX_TRANIER_HOME?=${XARVIS_HOME}/npx_trainer
+
 PLATFORM_DIR = $(abspath ${CURDIR}/../..)
 
 UTIL_DIR = ${PLATFORM_DIR}/util
@@ -40,7 +42,7 @@ PARA_DIR ?= ${CURDIR}/result
 PARA_DIR_ABS = $(abspath ${PARA_DIR})
 
 check:
-	@echo ${XARVIS_NPX_TRANIER_HOME}
+	@echo ${NPX_TRANIER_HOME}
 	@echo ${APP_CFG_DIR_ABS}
 	@echo ${ALL_APP_CFG_NAME_LIST}
 	@echo ${PARA_DIR_ABS}
@@ -55,7 +57,7 @@ clean:
 NUM_SAMPLE=1
 
 check_train_home:
-	$(if $(XARVIS_NPX_TRANIER_HOME), , $(error XARVIS_NPX_TRANIER_HOME is NOT defined))
+	$(if $(NPX_TRANIER_HOME), , $(error NPX_TRANIER_HOME is NOT defined))
 
 app_list:
 	@echo ${ALL_APP_CFG_NAME_LIST}
@@ -67,32 +69,32 @@ ${ALL_APP_CFG_NAME_LIST}:%: check_train_home %.train %.after_train
 $(addsuffix .after_train, ${ALL_APP_CFG_NAME_LIST}):%.after_train: %.riscv %.sample %.opt %.gen_file
 
 $(addsuffix .train, ${ALL_APP_CFG_NAME_LIST}):%.train:
-ifdef XARVIS_NPX_TRANIER_HOME
-	cd ${XARVIS_NPX_TRANIER_HOME} && make --no-print-directory train CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS}
+ifdef NPX_TRANIER_HOME
+	cd ${NPX_TRANIER_HOME} && make --no-print-directory train CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS}
 endif
 
 $(addsuffix .reset, ${ALL_APP_CFG_NAME_LIST}):%.reset:
-ifdef XARVIS_NPX_TRANIER_HOME
-	cd ${XARVIS_NPX_TRANIER_HOME} && make --no-print-directory reset CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS}
+ifdef NPX_TRANIER_HOME
+	cd ${NPX_TRANIER_HOME} && make --no-print-directory reset CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS}
 endif
 
 $(addsuffix .riscv, ${ALL_APP_CFG_NAME_LIST}):%.riscv:
-ifdef XARVIS_NPX_TRANIER_HOME
-	cd ${XARVIS_NPX_TRANIER_HOME} && make --no-print-directory riscv CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS}
+ifdef NPX_TRANIER_HOME
+	cd ${NPX_TRANIER_HOME} && make --no-print-directory riscv CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS}
 endif
 
 $(addsuffix .sample, ${ALL_APP_CFG_NAME_LIST}):%.sample:
-ifdef XARVIS_NPX_TRANIER_HOME
+ifdef NPX_TRANIER_HOME
 	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_files ${PARA_DIR_ABS}/$(*)/riscv *_sample_*.*
 	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_files ${PARA_DIR_ABS}/$(*)/riscv *_layeroutput_*.*
-	cd ${XARVIS_NPX_TRANIER_HOME} && make --no-print-directory sample CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS} NUM_SAMPLE=${NUM_SAMPLE}
+	cd ${NPX_TRANIER_HOME} && make --no-print-directory sample CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS} NUM_SAMPLE=${NUM_SAMPLE}
 endif
 
 $(addsuffix .tv, ${ALL_APP_CFG_NAME_LIST}):%.tv:
-ifdef XARVIS_NPX_TRANIER_HOME
+ifdef NPX_TRANIER_HOME
 	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_files ${PARA_DIR_ABS}/$(*)/riscv *_sample_*.*
 	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_files ${PARA_DIR_ABS}/$(*)/riscv *_layeroutput_*.*
-	cd ${XARVIS_NPX_TRANIER_HOME} && make --no-print-directory tv CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS} NUM_SAMPLE=${NUM_SAMPLE}
+	cd ${NPX_TRANIER_HOME} && make --no-print-directory tv CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS} NUM_SAMPLE=${NUM_SAMPLE}
 endif
 
 $(addsuffix .opt, ${ALL_APP_CFG_NAME_LIST}):%.opt:

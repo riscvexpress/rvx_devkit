@@ -36,12 +36,15 @@ check_sim_var:
 	@echo ${SIM_SRC_DIR_LIST}
 
 _compile_test:
+	@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/simulate_rtl.py -smt ${RTL_SIMULATOR} -op compile_init
 	@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/simulate_rtl.py -smt ${RTL_SIMULATOR} -op compile -include $(INC_DIR_LIST) $(SIM_INC_DIR_LIST) -source $(SRC_FILE_LIST) $(SRC_DIR_LIST) -define SIM_ENV RTL_IMP ${COMPILE_DEFINE} --each ${RTL_COMPILE_OPTION_AS_ARGUMENT}
 
 _compile_test_all: hello.build hello.after_build
+	@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/simulate_rtl.py -smt ${RTL_SIMULATOR} -op compile_init
 	@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/simulate_rtl.py -smt ${RTL_SIMULATOR} -op compile -include $(INC_DIR_LIST) $(SIM_INC_DIR_LIST) -source $(SRC_FILE_LIST) $(SRC_DIR_LIST) $(LIB_DIR_LIST) $(SIM_SRC_DIR_LIST) -define SIM_ENV RTL_IMP ${COMPILE_DEFINE} --each ${RTL_COMPILE_OPTION_AS_ARGUMENT}
 
 __compile_rtl:
+	@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/simulate_rtl.py -smt ${RTL_SIMULATOR} -op compile_init
 	@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/simulate_rtl.py -smt ${RTL_SIMULATOR} -op compile -include $(INC_DIR_LIST) $(SIM_INC_DIR_LIST) -source $(SRC_FILE_LIST) -define SIM_ENV RTL_IMP ${COMPILE_DEFINE} ${RTL_COMPILE_OPTION_AS_ARGUMENT}
 	@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/simulate_rtl.py -smt ${RTL_SIMULATOR} -op compile -include $(INC_DIR_LIST) $(SIM_INC_DIR_LIST) -source $(SRC_DIR_LIST) --each -define SIM_ENV RTL_IMP ${COMPILE_DEFINE} ${RTL_COMPILE_OPTION_AS_ARGUMENT}
 	@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/simulate_rtl.py -smt ${RTL_SIMULATOR} -op compile -include $(INC_DIR_LIST) $(SIM_INC_DIR_LIST) -source $(LIB_DIR_LIST) $(SIM_SRC_DIR_LIST) -define SIM_ENV RTL_IMP ${COMPILE_DEFINE} ${RTL_COMPILE_OPTION_AS_ARGUMENT}

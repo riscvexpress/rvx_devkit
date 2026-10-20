@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 from pathlib import Path
 import import_util
 
@@ -30,6 +31,26 @@ def execute_shell_cmd_separately(common_cmd_list: list, file_list: list, compile
         cmd_list = common_cmd_list + \
             [str(x) for x in file_list[i:i+number_of_file_at_once]]
         execute_shell_cmd_list(cmd_list)
+
+
+def sort_pkg_file_list(pkg_file_list: list) -> list:
+    pkg_name_set = frozenset(x.stem for x in pkg_file_list)
+    dependency_dict = {}
+    for pkg_file in pkg_file_list:
+        text = re.sub(r'//[^\n]*|/\*.*?\*/', '', pkg_file.read_text(errors='ignore'), flags=re.S)
+        dependency_dict[pkg_file] = set(re.findall(r'\b(\w+)::', text)) & pkg_name_set - {pkg_file.stem}
+    result = []
+    done_set = set()
+    remaining_list = list(pkg_file_list)
+    while remaining_list:
+        ready_list = [x for x in remaining_list if dependency_dict[x] <= done_set]
+        if not ready_list:
+            ready_list = remaining_list
+        for x in ready_list:
+            result.append(x)
+            done_set.add(x.stem)
+        remaining_list = [x for x in remaining_list if x not in ready_list]
+    return result
 
 
 def get_hdlsim_filename(tool: str, action: str) -> str:
@@ -84,9 +105,26 @@ def get_hdlsim_filename(tool: str, action: str) -> str:
                 result = 'xelab.log'
             elif action_list[0] == 'run' or action_list[0] == 'debug':
                 result = 'xsim.log'
+    elif tool == 'verilator':
+        if action_list[1] == 'log':
+            if action_list[0] == 'compile':
+                result = 'verilator_compile.log'
+            elif action_list[0] == 'elaborate':
+                result = 'verilator_elab.log'
+            elif action_list[0] == 'run' or action_list[0] == 'debug':
+                result = 'verilator.log'
 
     assert result, (tool, action)
     return result
+
+
+def get_verilator_exe(top: str) -> Path:
+    return Path('./obj_dir') / f'V{top}'
+
+
+def run_with_log(cmd_list: list, log_file_path: Path):
+    cmd = ' '.join(cmd_list) + f' 2>&1 | tee {log_file_path}'
+    execute_shell_cmd_list(f"bash -o pipefail -c '{cmd}'")
 
 
 if __name__ == '__main__':
@@ -104,7 +142,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     assert args.simulator in (
-        'ncsim', 'modelsim', 'xcelium', 'questasim', 'xsim'), 'Please check .rvx_tool_config'
+        'ncsim', 'modelsim', 'xcelium', 'questasim', 'xsim', 'verilator'), 'Please check .rvx_tool_config'
 
     verilog_file_list = gather_file_list(args.source, ('.v', '.vh', '.sv'))
     vhdl_file_list = gather_file_list(args.source, ('.vhd', '.vhdl'))
@@ -118,6 +156,7 @@ if __name__ == '__main__':
             pkg_verilog_file_list.append(verilog_file)
         else:
             normal_verilog_file_list.append(verilog_file)
+    pkg_verilog_file_list = sort_pkg_file_list(pkg_verilog_file_list)
 
     for vhdl_file in vhdl_file_list:
         if vhdl_file.stem.endswith('_pkg'):
@@ -127,8 +166,14 @@ if __name__ == '__main__':
 
     compile_correctly_file = Path('./compile_correctly')
     compile_wrong_file = Path('./compile_wrong')
+    verilator_file_list = Path('./verilator.f')
 
-    if args.operation == 'compile':
+    if args.operation == 'compile_init':
+        remove_file(compile_correctly_file)
+        if args.simulator == 'verilator':
+            remove_file(verilator_file_list)
+
+    elif args.operation == 'compile':
         remove_file(compile_correctly_file)
         compile_wrong_file.touch()
         if args.simulator == 'ncsim' or args.simulator == 'xcelium':
@@ -247,6 +292,20 @@ if __name__ == '__main__':
                     failed_list = [x for x in candidate_list if not execute_shell_cmd_list(common_cmd_list + [x], True)]
                     assert len(failed_list) < len(candidate_list), failed_list
                     candidate_list = failed_list
+        elif args.simulator == 'verilator':
+            assert not vhdl_file_list, f'VHDL is NOT supported by verilator: {vhdl_file_list[0]}'
+            line_list = verilator_file_list.read_text().splitlines() if verilator_file_list.is_file() else []
+            new_line_list = []
+            if args.option:
+                new_line_list.append(args.option)
+            new_line_list.append(f'+define+USE_{args.simulator.upper()}')
+            if args.define:
+                new_line_list += [f'+define+{x}' for x in args.define]
+            if args.include:
+                new_line_list += [f'+incdir+{Path(x).resolve()}' for x in args.include]
+            new_line_list += [str(x.resolve()) for x in pkg_verilog_file_list + normal_verilog_file_list]
+            line_list += [x for x in new_line_list if x not in line_list]
+            verilator_file_list.write_text('\n'.join(line_list) + '\n')
         remove_file(compile_wrong_file)
         compile_correctly_file.touch()
 
@@ -281,6 +340,22 @@ if __name__ == '__main__':
                         cmd_list.append('--debug typical')
                 cmd_list.append(f'-s {args.top} work.{args.top}')
                 execute_shell_cmd_list(cmd_list)
+            elif args.simulator == 'verilator':
+                line_list = verilator_file_list.read_text().splitlines()
+                file_list = [Path(x) for x in line_list if Path(x).is_file()]
+                pkg_file_list = sort_pkg_file_list([x for x in file_list if x.stem.endswith('_pkg')])
+                line_list = [x for x in line_list if not Path(x).is_file()] + \
+                    [str(x) for x in pkg_file_list] + [str(x) for x in file_list if x not in pkg_file_list]
+                verilator_file_list.write_text('\n'.join(line_list) + '\n')
+                cmd_list = ['verilator --binary --timing -j 0']
+                if args.option:
+                    cmd_list.append(args.option)
+                else:
+                    cmd_list.append('--timescale 1ns/100ps --default-language 1800-2017 -Wno-fatal -Wno-lint -Wno-style')
+                    if not args.operation.endswith('run'):
+                        cmd_list.append('--trace-fst')
+                cmd_list.append(f'--top-module {args.top} -f {verilator_file_list}')
+                run_with_log(cmd_list, Path('.') / get_hdlsim_filename(args.simulator, 'elaborate.log'))
 
     elif args.operation == 'run' or args.operation == 'debug':
         assert args.top
@@ -327,6 +402,11 @@ if __name__ == '__main__':
                     '.') / get_hdlsim_filename(args.simulator, f'{args.operation}.log')
                 cmd_list.append(f'--log {log_file_path}')
                 execute_shell_cmd_list(cmd_list)
+            elif args.simulator == 'verilator':
+                cmd_list = [str(get_verilator_exe(args.top))]
+                if args.option:
+                    cmd_list.append(args.option)
+                run_with_log(cmd_list, Path('.') / get_hdlsim_filename(args.simulator, f'{args.operation}.log'))
 
     elif args.operation == 'debug_view':
         assert args.top
@@ -339,6 +419,8 @@ if __name__ == '__main__':
                         f'vsim -debugdb {args.top} -do {sim_script}', stdout=None, stderr=None, asserts_when_error=False)
             elif args.simulator == 'xsim':
                 execute_shell_cmd_list(f'xsim {args.top} --gui')
+            elif args.simulator == 'verilator':
+                execute_shell_cmd_list('gtkwave ./wave.fst &')
 
     elif args.operation == 'view':
         if args.simulator == 'ncsim' or args.simulator == 'xcelium':
@@ -352,6 +434,8 @@ if __name__ == '__main__':
             execute_shell_cmd_list(cmd_list)
         elif args.simulator == 'xsim':
             execute_shell_cmd_list('xsim --gui ./wave.wdb')
+        elif args.simulator == 'verilator':
+            execute_shell_cmd_list('gtkwave ./wave.fst &')
         else:
             not_allowed_assertion(args.simulator)
     else:

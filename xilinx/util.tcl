@@ -17,3 +17,11 @@ proc touch { path } {
 		close [open $path w]
 	}
 }
+
+proc get_setup_wns {} {
+	set path [get_timing_paths -setup -max_paths 1 -nworst 1]
+	if {$path eq ""} {
+		return 0
+	}
+	return [get_property SLACK $path]
+}

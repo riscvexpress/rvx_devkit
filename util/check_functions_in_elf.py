@@ -38,7 +38,7 @@ def generate_function_set_from_elf(elf_file: str) -> frozenset:
             dwarf_info = elf.get_dwarf_info()
             for CU in dwarf_info.iter_CUs():
                 for DIE in CU.iter_DIEs():
-                    if DIE.tag == 'DW_TAG_subprogram':
+                    if DIE.tag == 'DW_TAG_subprogram' and 'DW_AT_inline' not in DIE.attributes:
                         name_attr = DIE.attributes.get('DW_AT_name')
                         if name_attr:
                             name = name_attr.value.decode(

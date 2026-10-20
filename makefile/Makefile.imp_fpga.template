@@ -93,7 +93,7 @@ $(addsuffix .all, ${APP_LIST}):%.all: %.rerun
 $(addsuffix .gen_flash_script, ${APP_LIST}):%.gen_flash_script: %
 	@make --no-print-directory gen_flash_script APP_NAME=$(*) BUILD_MODE=$(BUILD_MODE)
 
-$(addsuffix .flash, ${APP_LIST}):%.flash: % %.gen_flash_script
+$(addsuffix .flash, ${APP_LIST}):%.flash: flash_server % %.gen_flash_script
 	@make --no-print-directory app_flash APP_NAME=$(*) BUILD_MODE=$(BUILD_MODE)
 
 $(addsuffix .import_run, ${APP_LIST}):%.import_run:

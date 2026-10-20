@@ -16,6 +16,8 @@
 ## ****************************************************************************
 ## ****************************************************************************
 
+-include ./rvx_config_repo.mh
+
 PLATFORM_NAME=None
 
 ENGINE_WS=${CURDIR}/platform
@@ -37,3 +39,8 @@ platform_base:
 		mkdir ./${PLATFORM_BASE_DIRNAME}; \
 	fi
 	@cp -f ./platform/Makefile ./${PLATFORM_BASE_DIRNAME}
+
+${RVX_REPO_LIST}:
+	@make setup_modules RVX_INSTALL_MODULE_LIST=$@
+
+.PHONY: ${RVX_REPO_LIST}
