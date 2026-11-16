@@ -145,8 +145,8 @@ class RvxWorkspace():
     return f'{platform_name}.{target_imp_class}.{app_name}.{today}'
 
   @staticmethod
-  def _get_dump_flash_image_script_path(imp_instance_path:Path):
-    return imp_instance_path / f'dump_flash_image.tcl'
+  def _get_dump_unified_flash_image_script_path(imp_instance_path:Path):
+    return imp_instance_path / f'dump_unified_flash_image.tcl'
   
   @staticmethod
   def _get_program_flash_image_script_path(imp_instance_path:Path):
@@ -288,6 +288,10 @@ class RvxWorkspace():
             path = (compile_list_path.parent / path).resolve()
           compile_dir_list.append(path)
     total_file_list = gather_file_list(compile_dir_list, ['.c','.cpp','.S','.h','.a'])
+    flash_info_path = build_path / 'generated' / 'flash_info.h'
+    flash_info_path.parent.mkdir(exist_ok=True)
+    flash_info_path.write_text(self.imp_class.generate_flash_info_header(target_imp_class), encoding='utf8')
+    total_file_list.append(flash_info_path)
     if app_config_path.is_file():
       total_file_list.append(app_config_path)
     total_filename_set = frozenset([x.name for x in total_file_list])
@@ -856,6 +860,7 @@ class RvxWorkspace():
     hex_list = ' '.join([ str(sim_path/x) for x in ('sram.hex','crm.hex','dram.hex')])
     cmd = f'{self.config.python3_cmd} {calculate_hex_size_file} -i {hex_list} -o {hex_size_flie}'
     run_shell_cmd(cmd,sim_path)
+    (sim_path / 'include' / 'flash_info.vh').write_text(self.imp_class.generate_flash_info_vh('rtl'), encoding='utf8')
 
   def sim_rtl_compile_test(self, platform_name:str, sim_path:Path):
     run_shell_cmd(f'make --no-print-directory _compile_test RTL_SIMULATOR={self.config.rtl_simulator}',sim_path, stdout=None, stderr=None, asserts_when_error=False)
@@ -873,10 +878,10 @@ class RvxWorkspace():
     run_shell_cmd(f'make --no-print-directory _compile_rtl_debug_init RTL_SIMULATOR={self.config.rtl_simulator}',sim_path, stdout=None, stderr=None, asserts_when_error=False)
 
   def _sim_rtl_dump_dir(self, sim_path:Path):
-    dump_dir = sim_path / 'dump'
+    dump_dir = sim_path / 'dump' / 'fakefile'
     if dump_dir.is_dir():
       remove_directory(dump_dir)
-    dump_dir.mkdir()
+    dump_dir.mkdir(parents=True)
 
   def sim_rtl_run_rtl(self, platform_name:str, sim_path:Path):
     self._sim_rtl_dump_dir(sim_path)
@@ -885,7 +890,7 @@ class RvxWorkspace():
       run_shell_cmd_with_terminal(cmd, sim_path)
     else:
       run_shell_cmd(cmd, sim_path, stdout=None, stderr=None, asserts_when_error=False)
-    self.uncompress_dump(sim_path)
+    self.uncompress_dump(sim_path / 'dump' / 'fakefile')
 
   def sim_rtl_debug_rtl(self, platform_name:str, sim_path:Path):
     self._sim_rtl_dump_dir(sim_path)
@@ -894,7 +899,7 @@ class RvxWorkspace():
       run_shell_cmd_with_terminal(cmd, sim_path)
     else:
       run_shell_cmd(cmd, sim_path, stdout=None, stderr=None, asserts_when_error=False)
-    self.uncompress_dump(sim_path)
+    self.uncompress_dump(sim_path / 'dump' / 'fakefile')
 
   def sim_rtl_debug_view_rtl(self, platform_name:str, sim_path:Path):
     self._sim_rtl_dump_dir(sim_path)
@@ -903,7 +908,7 @@ class RvxWorkspace():
       run_shell_cmd_with_terminal(cmd, sim_path)
     else:
       run_shell_cmd(cmd, sim_path, stdout=None, stderr=None, asserts_when_error=False)
-    self.uncompress_dump(sim_path)
+    self.uncompress_dump(sim_path / 'dump' / 'fakefile')
 
   def sim_rtl_run(self, platform_name:str, app_name:str, build_mode, sim_path:Path):
     self.sim_rtl_build(platform_name,app_name,build_mode)
@@ -1083,28 +1088,26 @@ class RvxWorkspace():
     self.imp_fpga_path(platform_name, target_imp_class, imp_instance_path)
     
     # set_fpga
-    image_size = int(fpga_info_dict['image_size'])
-    image_size_Mbytes = (image_size >> 20) + 1
-    if 'separate_flash' in fpga_info_dict:
-      flash_base_addr = 0
-    else:
-      flash_base_addr = ((image_size >> 16)+1) << 16      
+    bitstream_size = int(fpga_info_dict['bitstream_size'])
+    bitstream_size_Mbytes = (bitstream_size >> 20) + 1
+    flash_var_dict = self.imp_class.get_flash_var_dict(target_imp_class)
+    flash_base_addr = int(flash_var_dict.get('FLASH_BINARY_BASEADDR', '0'), 0)
     template_file = self._get_env_file('xilinx', 'set_fpga.tcl.template')
     output_file = imp_instance_path / 'set_fpga.tcl'
     config_list = (('FPGA_PART', fpga_info_dict['part']),
-                   ('FLASH_BASE_ADDR', f'32\'h{flash_base_addr:x}'),
+                   ('FLASH_BINARY_BASEADDR', f'32\'h{flash_base_addr:x}'),
                    ('FLASH_INTERFACE_TYPE', fpga_info_dict['flash_interface_type'])
                   )
     configure_template_file(template_file, output_file, config_list)
 
     # gen_mcs
-    image_size_Mbytes2 = 1
-    while image_size_Mbytes2 < image_size_Mbytes:
-      image_size_Mbytes2 <<= 1
+    bitstream_size_Mbytes2 = 1
+    while bitstream_size_Mbytes2 < bitstream_size_Mbytes:
+      bitstream_size_Mbytes2 <<= 1
     template_file = self._get_env_file('xilinx', 'gen_mcs.tcl.template')
     output_file = imp_instance_path / 'gen_mcs.tcl'
     config_list = (('FLASH_INTERFACE_TYPE', fpga_info_dict['flash_interface_type']),
-                 ('PROM_SIZE', str(image_size_Mbytes2)))
+                 ('PROM_SIZE', str(bitstream_size_Mbytes2)))
     configure_template_file(template_file, output_file, config_list)
 
     # set_config_memory
@@ -1204,6 +1207,10 @@ class RvxWorkspace():
                  ('PLATFORM_NAME', platform_name))
     configure_template_file(template_file, output_file, config_list)
 
+    # set_flash_info
+    output_file = imp_instance_path / 'set_flash_info.tcl'
+    output_file.write_text(self.imp_class.generate_flash_info_tcl(target_imp_class), encoding='utf8')
+
     # ocd cfg
     imp_dict = self.imp_class.get_imp_class_info(target_imp_class)
     usb2jtag = imp_dict['usb2jtag']
@@ -1263,7 +1270,7 @@ class RvxWorkspace():
 
   def imp_fpga_clean(self, platform_name:str, target_imp_class:str, imp_instance_path:Path):
     exclude_list = set(('Makefile', '.gitignore', 'each_imp.mh','src','include','xci', 'ila', 'set_fpga.tcl', 'set_design.tcl', 'set_fpga_imp_env.tcl', 'set_fpga_syn_env.tcl',
-                        self.imp_fpga_set_path_path(imp_instance_path).name, 'set_ocd_env.tcl', 'gen_mcs.tcl', 'set_config_memory.tcl', f'{target_imp_class}.cfg',
+                        self.imp_fpga_set_path_path(imp_instance_path).name, 'set_ocd_env.tcl', 'set_flash_info.tcl', 'gen_mcs.tcl', 'set_config_memory.tcl', f'{target_imp_class}.cfg',
                         'create_generated_clock.tcl', 'set_false_path.tcl','set_tool_option.tcl', 'syn_manually.tcl', 'pnr_manually.tcl', 'set_sdram_config.tcl',f'{platform_name}.xml'))
     RvxWorkspace.__clean(imp_instance_path,exclude_list)
 
@@ -1307,6 +1314,13 @@ class RvxWorkspace():
     config_list = (('APP_NAME', app_name),)
     configure_template_file(template_file, output_file, config_list)
 
+  def __run_ocd_script(self, cmd:str, imp_instance_path:Path):
+    result = run_shell_cmd(cmd, imp_instance_path, prints_when_error=False, asserts_when_error=False)
+    if result.returncode!=0:
+      output = f'{result.stdout}{result.stderr}'
+      error_list = [line.split('ERROR] ')[-1] for line in output.splitlines() if 'ERROR]' in line or line.startswith('Error')]
+      self.__log_error('ocd_script', '\n'.join(error_list) if error_list else output)
+
   def imp_fpga_run(self, platform_name:str, app_name:str, target_imp_class:str, build_mode:str, imp_instance_path:Path):
     assert imp_instance_path.is_dir(), imp_instance_path
     #
@@ -1321,7 +1335,7 @@ class RvxWorkspace():
     self.__prepare_ocd(imp_instance_path)
     cmd = self._get_fpga_run_cmd(target_imp_class, imp_instance_path)
     cmd += f' -c \"source {PurePosixPath(script)}; exit\"'
-    run_shell_cmd(cmd, imp_instance_path)
+    self.__run_ocd_script(cmd, imp_instance_path)
 
   def imp_fpga_app_flash(self, platform_name:str, app_name:str, target_imp_class:str, build_mode:str, imp_instance_path:Path):
     assert imp_instance_path.is_dir(), imp_instance_path
@@ -1336,21 +1350,12 @@ class RvxWorkspace():
     self.__prepare_ocd(imp_instance_path)
     cmd = self._get_fpga_run_cmd(target_imp_class, imp_instance_path)
     cmd += f' -c \"source {script}; exit\"'
-    run_shell_cmd(cmd, imp_instance_path)
+    self.__run_ocd_script(cmd, imp_instance_path)
   
   def imp_fpga_gen_flash_script(self, platform_name:str, app_name:str, target_imp_class:str, imp_instance_path:Path):
-    fpga_info_dict = self.imp_class.get_fpga_info(target_imp_class)
-
-    template_file = self._get_env_file('xilinx', 'dump_flash_image.tcl.template')
-    output_file = self._get_dump_flash_image_script_path(imp_instance_path)
+    template_file = self._get_env_file('xilinx', 'dump_unified_flash_image.tcl.template')
+    output_file = self._get_dump_unified_flash_image_script_path(imp_instance_path)
     config_list = (('FLASH_IMAGE_FILENAME', str(self._get_flash_image_name(platform_name, app_name, target_imp_class, imp_instance_path))),)
-    configure_template_file(template_file, output_file, config_list)
-
-    template_file = self._get_env_file('xilinx', 'program_flash_image.tcl.template')
-    output_file = self._get_program_flash_image_script_path(imp_instance_path)
-    config_list = (('FLASH_IMAGE_FILENAME', str(self._get_flash_image_name(platform_name, app_name, target_imp_class, imp_instance_path))),
-                   ('CFG_MEM', fpga_info_dict['cfg_mem']),
-                   ('FLASH_INTERFACE_TYPE', fpga_info_dict['flash_interface_type']))
     configure_template_file(template_file, output_file, config_list)
 
   def imp_fpga___project(self, platform_name:str, target_imp_class:str, imp_instance_path:Path):
@@ -1527,9 +1532,9 @@ class RvxWorkspace():
       if not log_path.is_file():
         continue
       contents = log_path.read_text(encoding='utf8')
-      if 'Assert Failed:' in contents:
+      if '[ERROR/ASSERT]' in contents:
         break
-      elif '[RVX/END]'in contents:
+      elif '[INFO/SYSTEM] end' in contents:
         break
   
   @staticmethod
@@ -1537,7 +1542,7 @@ class RvxWorkspace():
     result = None
     assert log_path.is_file()
     contents = log_path.read_text(encoding='utf8')
-    if 'Assert Failed:' in contents:
+    if '[ERROR/ASSERT]' in contents:
       result = False
     else:
       result = True
@@ -1874,8 +1879,7 @@ class RvxWorkspace():
   def dump_data_path(dump_dir:Path):
     return dump_dir / 'dump_data.bin'
   
-  def uncompress_dump(self, imp_path:Path):
-    dump_dir = imp_path / 'dump'
+  def uncompress_dump(self, dump_dir:Path):
     dump_type_path = self.dump_type_path(dump_dir)
     dump_data_path = self.dump_data_path(dump_dir)
 
@@ -1883,40 +1887,45 @@ class RvxWorkspace():
       assert dump_data_path.is_file(), dump_data_path
 
       # read dump_type
-      dump_type = int(dump_type_path.read_text(encoding='utf8'))
+      dump_type = int(dump_type_path.read_text(encoding='utf8'),0)
       dump_type_dict = {0:'MEMORY_DUMP_NONE',
-                        1:'MEMORY_DUMP_FAKEFILE',
-                        2:'MEMORY_DUMP_IMAGE'}
+                        0x10:'MEMORY_DUMP_FAKEFILE',
+                        0x11:'MEMORY_DUMP_IMAGE'}
       print(f'dump type: {dump_type_dict[dump_type]}')
       if dump_type==0:
         pass
-      elif dump_type==1:
+      elif dump_type==0x10:
         # split
         split_fakefiles_file = self._get_env_file('util', 'split_fakefiles.py')
         cmd = f'{self.config.python3_cmd} {split_fakefiles_file} -i {dump_data_path} -o {dump_dir}'
-        result = run_shell_cmd(cmd,imp_path)
+        result = run_shell_cmd(cmd,dump_dir)
         print(result.stdout)
-      elif dump_type==2:
+      elif dump_type==0x11:
         image_file = self.devkit.output_file
         if not image_file:
           image_file = dump_dir / 'dumped_image.jpg'
         copy_file(dump_data_path, image_file)
-        print(f'Check {image_file.relative_to(imp_path)}')
+        print(f'Check {image_file}')
       else:
           assert 0
 
-  def imp_fpga_dump(self, target_imp_class:str, imp_instance_path:Path):
-    dump_dir = imp_instance_path / 'dump'
+  @staticmethod
+  def _imp_fpga_dump_dir(imp_instance_path:Path, name:str):
+    dump_dir = imp_instance_path / 'dump' / name
     if dump_dir.is_dir():
       remove_directory(dump_dir)
-    dump_dir.mkdir()
+    dump_dir.mkdir(parents=True)
+    return dump_dir
+
+  def imp_fpga_dump(self, target_imp_class:str, imp_instance_path:Path):
+    dump_dir = self._imp_fpga_dump_dir(imp_instance_path, 'fakefile')
 
     dump_type_path = self.dump_type_path(dump_dir)
     dump_data_path = self.dump_data_path(dump_dir)
 
     # script
     template_file = self._get_env_file('ocd', 'dump_memory.tcl.template')
-    script_file = imp_instance_path / template_file.stem
+    script_file = dump_dir / template_file.stem
     config_list = (('TYPE_FILE',str(PurePosixPath(dump_type_path))),
                   ('DATA_FILE',str(PurePosixPath(dump_data_path))),)
     configure_template_file(template_file, script_file, config_list)
@@ -1932,18 +1941,131 @@ class RvxWorkspace():
       run_shell_cmd(cmd, imp_instance_path)
 
     #
-    self.uncompress_dump(imp_instance_path)
+    self.uncompress_dump(dump_dir)
 
-  def imp_fpga_dump_flash_image(self, platform_name:str, target_imp_class:str, imp_instance_path:Path):
+  def imp_fpga_dump_unified_flash_image(self, platform_name:str, target_imp_class:str, imp_instance_path:Path):
+    if 'FLASH_IS_UNIFIED' not in self.imp_class.get_flash_var_dict(target_imp_class):
+      self.__log_error('imp_fpga_dump_unified_flash_image', f'{target_imp_class} has no unified flash. dump.unified_flash_image only supports boards that keep the bitstream, binary and file system in one flash')
     if not self.imp_fpga_set_path_path(imp_instance_path).is_file():
       self.imp_fpga_path(platform_name, target_imp_class, imp_instance_path)
-    dump_flash_image_script_path = self._get_dump_flash_image_script_path(imp_instance_path)
-    assert dump_flash_image_script_path.is_file()
-    run_shell_cmd('vivado -mode batch -source {0}'.format(dump_flash_image_script_path),imp_instance_path, stdout=None, stderr=None, asserts_when_error=False)
+    dump_unified_flash_image_script_path = self._get_dump_unified_flash_image_script_path(imp_instance_path)
+    assert dump_unified_flash_image_script_path.is_file()
+    dump_dir = self._imp_fpga_dump_dir(imp_instance_path, 'unified_flash_image')
+    run_shell_cmd('vivado -mode batch -source {0}'.format(dump_unified_flash_image_script_path),imp_instance_path, stdout=None, stderr=None, asserts_when_error=False)
+    image_list = sorted(dump_dir.glob('*.mcs'))
+    if not image_list:
+      self.__log_error('imp_fpga_dump_unified_flash_image', 'no flash image is dumped. See vivado.log')
+    fpga_info_dict = self.imp_class.get_fpga_info(target_imp_class)
+    image_name = re.sub(r'_(primary|secondary)$', '', image_list[0].stem)
+    template_file = self._get_env_file('xilinx', 'program_flash_image.tcl.template')
+    output_file = self._get_program_flash_image_script_path(dump_dir)
+    config_list = (('FLASH_IMAGE_FILENAME', image_name),
+                   ('CFG_MEM', fpga_info_dict['cfg_mem']),
+                   ('FLASH_INTERFACE_TYPE', fpga_info_dict['flash_interface_type']))
+    configure_template_file(template_file, output_file, config_list)
 
-    
+  def _imp_fpga_dump_flash_fs_chunks(self, name:str, target_imp_class:str, imp_instance_path:Path, extra_config_list:tuple):
+    flash_var_dict = self.imp_class.get_flash_var_dict(target_imp_class)
+    if 'FLASH_FS_BASEADDR' not in flash_var_dict:
+      self.__log_error(f'imp_fpga_dump_{name}', f'{target_imp_class} has no flash file system')
+    if not (imp_instance_path/'run_flash_server.tcl').is_file():
+      self.__log_error(f'imp_fpga_dump_{name}', '\"make flash_server\" first!')
+    dump_dir = self._imp_fpga_dump_dir(imp_instance_path, name)
+    data_file = dump_dir / 'flash_fs.data'
+    map_file = dump_dir / 'flash_fs.map'
+    temp_file = dump_dir / f'dump_{name}.tmp'
+
+    template_file = self._get_env_file('ocd', f'dump_{name}.tcl.template')
+    script_file = dump_dir / template_file.stem
+    config_list = (('DATA_FILE', str(PurePosixPath(data_file))),
+                   ('MAP_FILE', str(PurePosixPath(map_file))),
+                   ('TEMP_FILE', str(PurePosixPath(temp_file)))) + extra_config_list
+    configure_template_file(template_file, script_file, config_list)
+
+    self.__prepare_ocd(imp_instance_path)
+    cmd = self._get_fpga_run_cmd(target_imp_class, imp_instance_path)
+    cmd += f' -c \"source {PurePosixPath(script_file)}; exit\"'
+    self.__run_ocd_script(cmd, imp_instance_path)
+
+    if not (data_file.is_file() and map_file.is_file()):
+      self.__log_error(f'imp_fpga_dump_{name}', 'flash is not dumped')
+    if is_linux:
+      cmd = make_cmd_sudo(f'chown {script_file.owner()}:{script_file.group()} {data_file} {map_file}', self.devkit.get_sudo_passwd())
+      run_shell_cmd(cmd, imp_instance_path)
+    fill_dict = {1:b'\x00', 2:b'\xff'}
+    chunk_list = []
+    with open(data_file, 'rb') as fin:
+      for line in map_file.read_text(encoding='utf8').splitlines():
+        offset, num_bytes, pattern = line.split()
+        num_bytes = int(num_bytes, 0)
+        pattern = int(pattern)
+        chunk_list.append((int(offset, 0), fin.read(num_bytes) if pattern==0 else fill_dict[pattern]*num_bytes))
+    data_file.unlink()
+    return dump_dir, flash_var_dict, chunk_list
+
+  def imp_fpga_dump_flash_fs_raw(self, platform_name:str, target_imp_class:str, imp_instance_path:Path):
+    offset = int(os.environ.get('DUMP_OFFSET', '0'), 0)
+    size = int(os.environ.get('DUMP_SIZE', '0'), 0)
+    dump_dir, _, chunk_list = self._imp_fpga_dump_flash_fs_chunks('flash_fs_raw', target_imp_class, imp_instance_path, (('OFFSET', hex(offset)), ('SIZE', hex(size))))
+    image_file = self.devkit.output_file if self.devkit.output_file else dump_dir / 'flash_fs.bin'
+    with open(image_file, 'wb') as fout:
+      for _, data in chunk_list:
+        fout.write(data)
+    print(f'Check {image_file}')
+
+  def imp_fpga_dump_flash_fs(self, platform_name:str, target_imp_class:str, imp_instance_path:Path):
+    dump_dir, flash_var_dict, chunk_list = self._imp_fpga_dump_flash_fs_chunks('flash_fs', target_imp_class, imp_instance_path, ())
+    image_file = self.devkit.output_file if self.devkit.output_file else dump_dir / 'flash_fs.bin'
+    image = bytearray(b'\xff'*int(str(flash_var_dict['FLASH_FS_SIZE']), 0))
+    for offset, data in chunk_list:
+      image[offset:offset+len(data)] = data
+    image_file.write_bytes(image)
+    print(f'{len(chunk_list)} chunks in used blocks')
+    print(f'Check {image_file}')
+
+    files_dir = dump_dir / 'files'
+    extract_file = self._get_env_file('util', 'extract_flash_fs.py')
+    cmd = f'{self.config.python3_cmd} {extract_file} -i {image_file} -b {flash_var_dict["FLASH_SECTOR_SIZE"]} -o {files_dir}'
+    result = run_shell_cmd(cmd, dump_dir, asserts_when_error=False, prints_when_error=False)
+    print(result.stdout)
+    if result.returncode!=0:
+      print(result.stderr)
+      self.__log_error('imp_fpga_dump_flash_fs', 'file system is not extracted')
+    print(f'Check {files_dir}')
+
+  def imp_fpga_write_flash_fs(self, platform_name:str, target_imp_class:str, imp_instance_path:Path):
+    flash_var_dict = self.imp_class.get_flash_var_dict(target_imp_class)
+    if 'FLASH_FS_BASEADDR' not in flash_var_dict:
+      self.__log_error('imp_fpga_write_flash_fs', f'{target_imp_class} has no flash file system')
+    if not (imp_instance_path/'run_flash_server.tcl').is_file():
+      self.__log_error('imp_fpga_write_flash_fs', '\"make flash_server\" first!')
+    if not os.environ.get('FILE'):
+      self.__log_error('imp_fpga_write_flash_fs', 'set FILE. ex) make flash_fs.write FILE=big.bin [FS_PATH=/big.bin]')
+    local_file = Path(os.environ['FILE']).expanduser().resolve()
+    if not local_file.is_file():
+      self.__log_error('imp_fpga_write_flash_fs', f'no file {local_file}')
+    fs_path = os.environ.get('FS_PATH') or f'/{local_file.name}'
+    if not fs_path.startswith('/'):
+      fs_path = '/' + fs_path
+    work_dir = self._imp_fpga_dump_dir(imp_instance_path, 'flash_fs_write')
+    temp_file = work_dir / 'write_flash_fs.tmp'
+
+    template_file = self._get_env_file('ocd', 'write_flash_fs.tcl.template')
+    script_file = work_dir / template_file.stem
+    config_list = (('LOCAL_FILE', str(PurePosixPath(local_file))),
+                   ('FS_PATH', fs_path),
+                   ('TEMP_FILE', str(PurePosixPath(temp_file))))
+    configure_template_file(template_file, script_file, config_list)
+
+    print(f'write {local_file} ({local_file.stat().st_size} bytes) to {fs_path}')
+    self.__prepare_ocd(imp_instance_path)
+    cmd = self._get_fpga_run_cmd(target_imp_class, imp_instance_path)
+    cmd += f' -c \"source {PurePosixPath(script_file)}; exit\"'
+    self.__run_ocd_script(cmd, imp_instance_path)
+    print(f'{fs_path} is written')
+
   def imp_fpga_check_dumped_image(self, target_imp_class:str, imp_instance_path:Path):
-    dump_dir = imp_instance_path / 'dump'
+    dump_dir = imp_instance_path / 'dump' / 'fakefile'
     for image_file in chain(dump_dir.glob('*.jpg'),dump_dir.glob('*.bmp')):
       if is_linux:
         cmd = f'display {image_file}'

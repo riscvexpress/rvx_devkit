@@ -11,7 +11,7 @@ proc dec2hex {dec} {
 proc get_hex_file_size {hex_file} {
 	
 	if [file exists $hex_file]!=1 {
-		echo [format "\[ERROR\] no hex file \"%s\"" $hex_file]
+		echo [format "<OCD:ERROR> no hex file \"%s\"" $hex_file]
 		exit 1
 	}
 	set f [open $hex_file r]

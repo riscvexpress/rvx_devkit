@@ -1,0 +1,2 @@
+source ./run_flash_server.tcl
+dump_flash_fs_raw "${DATA_FILE}" "${MAP_FILE}" "${TEMP_FILE}" "${OFFSET}" "${SIZE}"

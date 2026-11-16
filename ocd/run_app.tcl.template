@@ -1,9 +1,8 @@
 set APP_NAME "${APP_NAME}"
 
-reset_all_platform
-print_platform_info
-
 if {[get_boot_mode]==$BOOT_MODE_OCD} {
+  reset_all_platform
+  print_platform_info
   if [info exists INCLUDE_SDRAM]==1 {
     init_sdram
   }
@@ -20,7 +19,12 @@ if {[get_boot_mode]==$BOOT_MODE_OCD} {
   
   
   set_app_addr $APP_ADDR
+  if [info exists FLASH_FS_BASEADDR]==1 {
+    set_flash_fs_baseaddr $FLASH_FS_BASEADDR
+    set_flash_fs_size $FLASH_FS_SIZE
+  }
   set_all_ready
 } else {
-	echo [format "\n\[MUNOC|ERROR\] boot mode should be set to OCD_MODE"]
+	echo [format "\n<OCD:ERROR> boot mode should be set to OCD_MODE"]
+	break
 }

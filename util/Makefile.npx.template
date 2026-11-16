@@ -104,7 +104,8 @@ $(addsuffix .gen_file, ${ALL_APP_CFG_NAME_LIST}):%.gen_file: %.clean_generated
 	@cd ${UTIL_DIR} && make --no-print-directory fakefile
 	@cd ${UTIL_DIR} && make --no-print-directory generated
 	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py mkdir ${RESULT_DIR}
-	@cd ${FAKEFIE_DIR} && make --no-print-directory convert FILE_LIST="${APP_CFG_DIR_ABS}/$(*)_preprocess.cfg" RESULT_DIR=${RESULT_DIR}
+	$(if $(wildcard ${APP_CFG_DIR_ABS}/$(*)_preprocess.cfg),,@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/extract_cfg_section.py -i ${APP_CFG_DIR_ABS}/$(*).cfg -o ${RESULT_DIR}/$(*)_preprocess.cfg -s preprocess)
+	@cd ${FAKEFIE_DIR} && make --no-print-directory convert FILE_LIST="$(firstword $(wildcard ${APP_CFG_DIR_ABS}/$(*)_preprocess.cfg) ${RESULT_DIR}/$(*)_preprocess.cfg)" RESULT_DIR=${RESULT_DIR}
 	@cd ${FAKEFIE_DIR} && make --no-print-directory convert FILE_LIST="$(wildcard ${PARA_DIR_ABS}/$(*)/riscv/$(*)*.bin)" RESULT_DIR=${RESULT_DIR}
 	@cd ${FAKEFIE_DIR} && make --no-print-directory convert FILE_LIST="$(wildcard ${PARA_DIR_ABS}/$(*)/riscv/$(*)*.cfg)" RESULT_DIR=${RESULT_DIR}
 

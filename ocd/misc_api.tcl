@@ -31,6 +31,38 @@ proc set_app_addr {app_addr} {
 	write_single [get_app_addr_addr] $app_addr
 }
 
+proc get_flash_fs_baseaddr_addr {} {
+	global PLATFORM_CONTROLLER_BASEADDR
+	global MMAP_OFFSET_PLATFORM_REGISTER_FLASH_FS_BASEADDR
+
+	set addr [expr $PLATFORM_CONTROLLER_BASEADDR + $MMAP_OFFSET_PLATFORM_REGISTER_FLASH_FS_BASEADDR]
+	return $addr
+}
+
+proc get_flash_fs_baseaddr {} {
+	return [read_single [get_flash_fs_baseaddr_addr]]
+}
+
+proc set_flash_fs_baseaddr {flash_fs_baseaddr} {
+	write_single [get_flash_fs_baseaddr_addr] $flash_fs_baseaddr
+}
+
+proc get_flash_fs_size_addr {} {
+	global PLATFORM_CONTROLLER_BASEADDR
+	global MMAP_OFFSET_PLATFORM_REGISTER_FLASH_FS_SIZE
+
+	set addr [expr $PLATFORM_CONTROLLER_BASEADDR + $MMAP_OFFSET_PLATFORM_REGISTER_FLASH_FS_SIZE]
+	return $addr
+}
+
+proc get_flash_fs_size {} {
+	return [read_single [get_flash_fs_size_addr]]
+}
+
+proc set_flash_fs_size {flash_fs_size} {
+	write_single [get_flash_fs_size_addr] $flash_fs_size
+}
+
 proc print_sdram_config {} {
   global I_SYSTEM_SDRAM_CTRL_BASEADDR
   print_memory $I_SYSTEM_SDRAM_CTRL_BASEADDR 3

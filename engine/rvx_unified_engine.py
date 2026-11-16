@@ -445,10 +445,22 @@ if __name__ == '__main__':
       rvx_workspace.imp_fpga_run_ocd(args.target_imp_class, imp_instance_path)
 
     elif cmd_list[1]=='dump':
-      rvx_workspace.imp_fpga_dump(args.target_imp_class, imp_instance_path)
-    
-    elif cmd_list[1]=='dump_flash_image':
-      rvx_workspace.imp_fpga_dump_flash_image(platform_name, args.target_imp_class, imp_instance_path)
+      if cmd_list[2]=='fakefile':
+        rvx_workspace.imp_fpga_dump(args.target_imp_class, imp_instance_path)
+      elif cmd_list[2]=='unified_flash_image':
+        rvx_workspace.imp_fpga_dump_unified_flash_image(platform_name, args.target_imp_class, imp_instance_path)
+      elif cmd_list[2]=='flash_fs_raw':
+        rvx_workspace.imp_fpga_dump_flash_fs_raw(platform_name, args.target_imp_class, imp_instance_path)
+      elif cmd_list[2]=='flash_fs':
+        rvx_workspace.imp_fpga_dump_flash_fs(platform_name, args.target_imp_class, imp_instance_path)
+      else:
+        assert 0, cmd_list
+
+    elif cmd_list[1]=='flash_fs':
+      if cmd_list[2]=='write':
+        rvx_workspace.imp_fpga_write_flash_fs(platform_name, args.target_imp_class, imp_instance_path)
+      else:
+        assert 0, cmd_list
 
     elif cmd_list[1]=='check_dumped_image' or cmd_list[1]=='check_image':
       rvx_workspace.imp_fpga_check_dumped_image(args.target_imp_class, imp_instance_path)

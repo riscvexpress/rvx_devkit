@@ -16,6 +16,10 @@
 ## ****************************************************************************
 ## ****************************************************************************
 
+ifeq ($(origin CFLAGS),environment)
+CFLAGS =
+endif
+
 include ${RVX_RELEASE_HOME}/rvx_config_path.mh
 include ${RVX_BINARY_HOME}/rvx_config_compiler.mh
 
@@ -43,7 +47,7 @@ HW_ENV = rtl
 
 ifeq ($(BUILD_MODE),release)
 ifndef CFLAGS_RELEASE
-	CFLAGS  = -O2 -DNDEBUG
+	CFLAGS += $(or $(OPT_LEVEL),-O2) -DNDEBUG
 	CFLAGS += -ffunction-sections -fdata-sections
 	CFLAGS += -Wno-builtin-declaration-mismatch
 	CFLAGS += -fno-exceptions
@@ -54,7 +58,7 @@ endif
 
 ifeq ($(BUILD_MODE),debug)
 ifndef CFLAGS_DEBUG
-	CFLAGS  = -g -O1
+	CFLAGS += -g $(or $(OPT_LEVEL),-O1)
 	CFLAGS += -ffunction-sections -fdata-sections
 else
 	CFLAGS  = $(CFLAGS_DEBUG)
@@ -63,7 +67,7 @@ endif
 
 ifeq ($(BUILD_MODE),profile)
 ifndef CFLAGS_PROFILE
-	CFLAGS  = -O3 -DNDEBUG -DUSE_PROFILING -DSILENT_FOR_PROFILING
+	CFLAGS += $(or $(OPT_LEVEL),-O3) -DNDEBUG -DUSE_PROFILING -DSILENT_FOR_PROFILING
 	CFLAGS += -ffunction-sections -fdata-sections
 	CFLAGS += -Wno-builtin-declaration-mismatch
 	CFLAGS += -fno-exceptions

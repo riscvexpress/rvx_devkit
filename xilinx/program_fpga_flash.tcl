@@ -47,6 +47,7 @@ if {[string equal ${FLASH_INTERFACE_TYPE} spix8]} {
 } else {
 	set_property PROGRAM.FILES [list ${IMP_RESULT_DIR}/${BIT_FILE_NAME}.mcs] [ get_property PROGRAM.HW_CFGMEM [current_hw_device]]
 }
+set_property PROGRAM.ADDRESS_RANGE {use_file} [ get_property PROGRAM.HW_CFGMEM [current_hw_device]]
 set_property PROGRAM.UNUSED_PIN_TERMINATION {pull-none} [ get_property PROGRAM.HW_CFGMEM [current_hw_device]]
 set_property PROGRAM.BLANK_CHECK  0 [ get_property PROGRAM.HW_CFGMEM [current_hw_device]]
 set_property PROGRAM.ERASE  1 [ get_property PROGRAM.HW_CFGMEM [current_hw_device]]

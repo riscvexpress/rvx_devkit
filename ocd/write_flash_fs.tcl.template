@@ -1,0 +1,2 @@
+source ./run_flash_server.tcl
+write_flash_fs_file "${LOCAL_FILE}" "${FS_PATH}" "${TEMP_FILE}"

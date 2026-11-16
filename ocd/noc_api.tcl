@@ -36,7 +36,7 @@ proc print_noc_version {} {
 
 	set temp_string_size 16
 	set temp_string [__read_mmio_string [get_noc_mmap $MMAP_OFFSET_INFO_VERSION0] $temp_string_size $MUNOC_ADDR_INTERVAL]
-	puts [format "\[NOC:INFO\] %s" $temp_string]
+	puts [format "<OCD:INFO> NOC %s" $temp_string]
 }
 
 proc get_noc_config {} {
@@ -49,11 +49,11 @@ proc get_noc_config {} {
 }
 
 proc print_noc_config {} {
-	puts [format "\[NOC:INFO\] Config: %s" [get_noc_config]]
+	puts [format "<OCD:INFO> NOC Config: %s" [get_noc_config]]
 }
 
 proc print_noc_ip_number {} {
-	puts [format "\[NOC:INFO\] master: %d, slave: %d" [get_number_of_master] [get_number_of_slave] ]
+	puts [format "<OCD:INFO> NOC master: %d, slave: %d" [get_number_of_master] [get_number_of_slave] ]
 }
 
 proc print_noc_info {} {
@@ -83,7 +83,7 @@ proc print_ip_name {type index} {
 	if {[string index $noc_config 1]=="C"} {
 		set node_id [read_system [get_ni_mmap $type $index $MMAP_OFFSET_CONTROLLER_NODEID]]
 		set temp_string [__read_mmio_string [get_ni_mmap $type $index $MMAP_OFFSET_CONTROLLER_NAME0] $temp_string_size $MUNOC_ADDR_INTERVAL]
-		puts [format "\[NOC:INFO\] %s %d: %s" [get_type_name $type] $node_id $temp_string]
+		puts [format "<OCD:INFO> NOC %s %d: %s" [get_type_name $type] $node_id $temp_string]
 	}
 }
 
@@ -147,6 +147,6 @@ proc check_noc_status {} {
 			check_ip_status $SLAVE_IP $i
 		}
 	} else {
-		puts "\[NOC:INFO\] Controllers are NOT included"
+		puts "<OCD:INFO> NOC Controllers are NOT included"
 	}
 }

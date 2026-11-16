@@ -81,3 +81,62 @@ class RvxImpClass():
       if result:
         result = result.get('fpga_info')
     return result
+
+  def get_flash_var_dict(self, imp_name:str):
+    result = {}
+    imp_class_info = self.get_imp_class_info(imp_name)
+    flash = imp_class_info.get('flash') if imp_class_info else None
+    if not flash:
+      result['HAS_NO_FLASH'] = None
+    else:
+      is_unified = 'unified_flash' in flash
+      is_separate = 'separate_flash' in flash
+      assert is_unified != is_separate, imp_name
+      result['HAS_FLASH'] = None
+      result['FLASH_DEVICE'] = flash['device']
+      if is_unified:
+        result['FLASH_IS_UNIFIED'] = None
+      else:
+        result['FLASH_IS_SEPARATE'] = None
+      if 'qspi' in flash:
+        result['FLASH_IS_QSPI'] = None
+      result['FLASH_SIZE'] = flash['size']
+      result['FLASH_SECTOR_SIZE'] = flash['sector_size']
+      if 'spi_freq_hz' in flash:
+        result['FLASH_SPI_FREQ_HZ'] = flash['spi_freq_hz']
+      layout = flash.get('flash_layout', {})
+      for tag, name in (('bitstream_base_addr', 'FLASH_BITSTREAM_BASEADDR'),
+                        ('bitstream_size', 'FLASH_BITSTREAM_SIZE'),
+                        ('binary_base_addr', 'FLASH_BINARY_BASEADDR'),
+                        ('binary_size', 'FLASH_BINARY_SIZE'),
+                        ('fs_base_addr', 'FLASH_FS_BASEADDR'),
+                        ('fs_size', 'FLASH_FS_SIZE')):
+        if tag in layout:
+          result[name] = layout[tag]
+    return result
+
+  def generate_flash_info_tcl(self, imp_name:str):
+    line_list = []
+    for name, value in self.get_flash_var_dict(imp_name).items():
+      if name=='FLASH_DEVICE':
+        value = f'"{value}"'
+      line_list.append(f'set {name} {1 if value is None else value}')
+    return '\n'.join(line_list) + '\n'
+
+  def generate_flash_info_header(self, imp_name:str):
+    line_list = ['#ifndef __FLASH_INFO_H__', '#define __FLASH_INFO_H__', '']
+    for name, value in self.get_flash_var_dict(imp_name).items():
+      if name=='FLASH_DEVICE':
+        value = f'"{value}"'
+      line_list.append(f'#define {name}' if value is None else f'#define {name} {value}')
+    line_list += ['', '#endif']
+    return '\n'.join(line_list) + '\n'
+
+  def generate_flash_info_vh(self, imp_name:str):
+    line_list = ['`ifndef __FLASH_INFO_VH__', '`define __FLASH_INFO_VH__', '']
+    flash_var_dict = self.get_flash_var_dict(imp_name)
+    for name in ('FLASH_FS_BASEADDR', 'FLASH_FS_SIZE'):
+      if name in flash_var_dict:
+        line_list.append(f"`define {name} 32'h{int(flash_var_dict[name], 0):x}")
+    line_list += ['', '`endif']
+    return '\n'.join(line_list) + '\n'

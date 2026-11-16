@@ -34,11 +34,16 @@ def execute_shell_cmd_separately(common_cmd_list: list, file_list: list, compile
 
 
 def sort_pkg_file_list(pkg_file_list: list) -> list:
-    pkg_name_set = frozenset(x.stem for x in pkg_file_list)
-    dependency_dict = {}
+    text_dict = {}
+    name_dict = {}
     for pkg_file in pkg_file_list:
         text = re.sub(r'//[^\n]*|/\*.*?\*/', '', pkg_file.read_text(errors='ignore'), flags=re.S)
-        dependency_dict[pkg_file] = set(re.findall(r'\b(\w+)::', text)) & pkg_name_set - {pkg_file.stem}
+        text_dict[pkg_file] = text
+        name_dict[pkg_file] = set(re.findall(r'^\s*package\s+(\w+)\s*;', text, flags=re.M)) or {pkg_file.stem}
+    pkg_name_set = frozenset().union(*name_dict.values()) if name_dict else frozenset()
+    dependency_dict = {}
+    for pkg_file in pkg_file_list:
+        dependency_dict[pkg_file] = set(re.findall(r'\b(\w+)::', text_dict[pkg_file])) & pkg_name_set - name_dict[pkg_file]
     result = []
     done_set = set()
     remaining_list = list(pkg_file_list)
@@ -48,7 +53,7 @@ def sort_pkg_file_list(pkg_file_list: list) -> list:
             ready_list = remaining_list
         for x in ready_list:
             result.append(x)
-            done_set.add(x.stem)
+            done_set |= name_dict[x]
         remaining_list = [x for x in remaining_list if x not in ready_list]
     return result
 

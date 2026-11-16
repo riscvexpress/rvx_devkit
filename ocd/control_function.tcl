@@ -39,7 +39,7 @@ proc print_all_pc {} {
 	global NUM_CORE
 	set addr $MMAP_OFFSET_PLATFORM_REGISTER_CORE_PC00
 	for {set i 0} {$i<$NUM_CORE} {incr i} {
-		echo [format "\[INFO\] core %02d pc: 0x%08x" $i [read_system $addr]]
+		echo [format "<OCD:INFO> core %02d pc: 0x%08x" $i [read_system $addr]]
 		set addr [expr $addr + 4]
 	}
 }
@@ -50,7 +50,7 @@ proc print_pc {core_id num} {
 	global NUM_CORE
 	set addr [expr $MMAP_OFFSET_PLATFORM_REGISTER_CORE_PC00 + [expr $core_id * $BW_MMAP_SUBOFFSET_PLATFORM_REGISTER]]
 	for {set i 0} {$i<$num} {incr i} {
-		echo [format "\[INFO\] core %02d pc: 0x%08x" $core_id [read_system $addr]]
+		echo [format "<OCD:INFO> core %02d pc: 0x%08x" $core_id [read_system $addr]]
 	}
 }
 

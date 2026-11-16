@@ -8,6 +8,9 @@ source ${RVX_DEVKIT_HOME}/ocd/munoc_memorymap_offset.tcl
 source ${PLATFORM_DIR}/arch/tcl/memorymap_info.tcl
 source ${PLATFORM_DIR}/arch/tcl/hw_info.tcl
 source ${PLATFORM_DIR}/arch/tcl/ssw_info.tcl
+if [file exists ./set_flash_info.tcl]==1 {
+  source ./set_flash_info.tcl
+}
 
 source ${RVX_DEVKIT_HOME}/ocd/util.tcl
 source ${RVX_DEVKIT_HOME}/ocd/jtag_function.tcl

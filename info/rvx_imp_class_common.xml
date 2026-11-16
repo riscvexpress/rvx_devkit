@@ -6,6 +6,18 @@
 			<display_name>RTL</display_name>
 			<type>rtl</type>
 			<unique_instance>sim_rtl</unique_instance>
+			<flash>
+				<separate_flash/>
+				<device>mt25ql512aba1e0</device>
+				<size>0x4000000</size>
+				<sector_size>0x10000</sector_size>
+				<flash_layout>
+					<binary_base_addr>0x0</binary_base_addr>
+					<binary_size>0x400000</binary_size>
+					<fs_base_addr>0x400000</fs_base_addr>
+					<fs_size>0x3C00000</fs_size>
+				</flash_layout>
+			</flash>
 		</imp_class>
 	</imp_class_list>
 </rvx>

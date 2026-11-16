@@ -25,6 +25,15 @@ if {[file exist ${IMP_RESULT_DIR}]} {
 }
 file mkdir ${IMP_RESULT_DIR}
 
+source ${PLATFORM_DIR}/arch/tcl/hw_info.tcl
+if {[file exist ./set_flash_info.tcl]} {
+	source ./set_flash_info.tcl
+}
+if {[info exists INCLUDE_SPI_FLASH] && [info exists HAS_NO_FLASH]} {
+	puts "\[ERROR\] This platform uses SPI flash, but board ${FPGA_NAME} has no flash\n\n"
+	exit 1
+}
+
 create_project ${IMP_RESULT_DIR}/${PROJECT_NAME}
 
 ###############

@@ -31,7 +31,7 @@ OUTPUT_FILE=""
 
 FREEZE_FILE_LIST=Makefile ${PLATFORM_NAME}.xml *.tcl *.cfg .gitignore
 FREEZE_FILE_LIST+=./imp_result/*.bit ./imp_result/*.rpt ./imp_result/*.log ./imp_result/${PLATFORM_NAME}.xml
-TEMP_FILE_LIST=./run_*.tcl ./program_*.tcl ./dump_memory.tcl
+TEMP_FILE_LIST=./run_*.tcl ./program_*.tcl ./dump_memory.tcl ./dump
 
 ########
 # both #
@@ -41,7 +41,7 @@ BUILD_MODE ?= debug
 
 ENGINE_WS ?= $(abspath ${PLATFORM_DIR}/..)
 ENGINE_TARGET=imp_fpga
-ENGINE_USER_CMD_LIST=path clean project open_project imp reimp imp_route_opt check_imp program program_flash dump check_dumped_image app_list verify_apps run_verify dump_flash_image
+ENGINE_USER_CMD_LIST=path clean project open_project imp reimp imp_route_opt check_imp program program_flash dump.fakefile check_dumped_image app_list verify_apps run_verify dump.unified_flash_image dump.flash_fs_raw dump.flash_fs flash_fs.write
 ENGINE_USER_CMD_ADV_LIST=ila ila_clean manual_top
 ENGINE_SYSTEM_CMD_LIST=module top pll info xci tcl build after_build clean_build run_ocd connect_ocd printf printf_check mcs run app_flash __project __imp gen_flash_script
 ENGINE_PARA= -p ${PLATFORM_NAME} $(if ${APP_NAME},-a ${APP_NAME}) -tic ${TARGET_IMP_CLASS} -bm ${BUILD_MODE} -imp_dir ${CURDIR} -o ${OUTPUT_FILE}
@@ -71,7 +71,7 @@ $(addsuffix ._run, ${APP_LIST}):%._run:
 	@make --no-print-directory run APP_NAME=$(*) BUILD_MODE=$(BUILD_MODE)
 
 $(addsuffix .run, ${APP_LIST}):%.run:
-	@make --no-print-directory $(*)._run BUILD_MODE=debug
+	@make --no-print-directory $(*)._run
 
 $(addsuffix .rerun, ${APP_LIST}):%.rerun: %.clean %.run
 
@@ -95,6 +95,10 @@ $(addsuffix .gen_flash_script, ${APP_LIST}):%.gen_flash_script: %
 
 $(addsuffix .flash, ${APP_LIST}):%.flash: flash_server % %.gen_flash_script
 	@make --no-print-directory app_flash APP_NAME=$(*) BUILD_MODE=$(BUILD_MODE)
+
+dump.flash_fs_raw: flash_server
+dump.flash_fs: flash_server
+flash_fs.write: flash_server
 
 $(addsuffix .import_run, ${APP_LIST}):%.import_run:
 	@cd ${PLATFORM_DIR}/app && make --no-print-directory $(*).import_app

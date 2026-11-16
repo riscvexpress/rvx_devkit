@@ -35,7 +35,7 @@
 
 USE_FAKEFILE ?= false
 ifeq ($(USE_FAKEFILE),true)
-  DEFINE_CFLAGS += -DUSE_FAKEFILE
+  CFLAGS += -DUSE_FAKEFILE
 endif
 
 USE_FREERTOS ?= false
@@ -49,6 +49,12 @@ ifeq ($(USE_TEXT_PARSER),true)
     $(error enable USE_FAKEFILE in rvx_each.mh)
   endif
 	-include ${RVX_SSW_HOME}/third_party/text_parser/env/set_env.mh
+endif
+
+USE_FLASH_FS ?= false
+ifeq ($(USE_FLASH_FS),true)
+	-include ${RVX_SSW_HOME}/third_party/littlefs/env/set_env.mh
+	-include ${RVX_SSW_HOME}/driver/flash_fs/env/set_env.mh
 endif
 
 USE_NPX ?= false
@@ -77,7 +83,9 @@ endif
 LD_SCRIPT = ${PLATFORM_DIR}/arch/ssw/env/link.ld
 TARGET_NAME = $(APP_NAME).$(PLATFORM_NAME)
 
-CFLAGS += $(DEFINE_CFLAGS)
+ifdef DEFINE_CFLAGS
+  $(error DEFINE_CFLAGS is no longer supported; use CFLAGS += instead)
+endif
 
 CXXFLAGS = ${CFLAGS}
 CXXFLAGS += -fno-rtti

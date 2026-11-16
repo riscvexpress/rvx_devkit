@@ -59,7 +59,9 @@ if __name__ == '__main__':
     active_high_reset = True
   else:
     active_high_reset = False
-    
+  flash_info = imp_class_info.get('flash')
+  flash_is_qspi = bool(flash_info) and ('qspi' in flash_info)
+
   exclude_port_list = imp_class_info['fpga_info'].get('exclude_port')
   special_port_list = []
   if not exclude_port_list:
@@ -107,6 +109,7 @@ if __name__ == '__main__':
   # elab
   top_port_list = []
   wire_list = []
+  port_mapping_dict = {}
   for name, width_xml, port in platform_signal_list:
     if name in special_port_set:
       if name=='external_rstnn':
@@ -122,6 +125,14 @@ if __name__ == '__main__':
     elif name.startswith('external_clk') and (name not in external_clk_valid_name_set):
       assert port=='input'
       wire_list.append((name, width_xml, ' = 0' ))
+    elif (name=='spi_flash_sdq') and (not flash_is_qspi):
+      assert port=='inout', port
+      assert width_xml.text=='4', width_xml.text
+      narrow_width_xml = Element('width', {'type':'dec'})
+      narrow_width_xml.text = '2'
+      top_port_list.append((name, narrow_width_xml, port))
+      wire_list.append(('spi_flash_sdq_unused', narrow_width_xml, ''))
+      port_mapping_dict[name] = '{spi_flash_sdq_unused,spi_flash_sdq}'
     else:
       top_port_list.append((name, width_xml, port))
 
@@ -199,7 +210,7 @@ i_STARTUPE2
   line_list.append(top_module_name.upper())
   line_list.append('i_platform')
   line_list.append('(')
-  line_list.append(',\n'.join([ f'\t.{name}({name})' for name, width_xml, port in platform_signal_list ]))
+  line_list.append(',\n'.join([ f'\t.{name}({port_mapping_dict.get(name, name)})' for name, width_xml, port in platform_signal_list ]))
   for included_port in included_port_list:
     line_list.append(f'\t`include \"{included_port}_mapping.vh\"')
   line_list.append(');')
