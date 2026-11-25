@@ -972,7 +972,7 @@ class RvxWorkspace():
     
     run_log_path = sim_path / get_hdlsim_filename(self.config.rtl_simulator, 'run.log')
     app_run_log_path = self.get_app_log_path(run_log_path, '*')
-    remove_files(app_run_log_path.parent, app_run_log_path.name)
+    remove_file_by_pattern(app_run_log_path.parent, app_run_log_path.name)
     
     result = True
     for app_name in app_list:
@@ -1465,7 +1465,7 @@ class RvxWorkspace():
     
     printf_dump_path = Path(self.config.printf_log_filename)
     app_printf_dump_path = self.get_app_log_path(printf_dump_path, '*')
-    remove_files(app_printf_dump_path.parent, app_printf_dump_path.name)
+    remove_file_by_pattern(app_printf_dump_path.parent, app_printf_dump_path.name)
 
     result = True
     for app_name in app_list:

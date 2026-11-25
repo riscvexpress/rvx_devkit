@@ -142,7 +142,7 @@ class RvxEngineLog():
       run_shell_cmd(f'tar -czf {self.log_tar_file} ./rvx_*.log', self.log_path, stdout=None, stderr=None, asserts_when_error=False)
 
   def clean(self):
-    remove_files(self.log_path, 'rvx_*.log')
+    remove_file_by_pattern(self.log_path, 'rvx_*.log')
     self.__clear()
 
   def __repr__(self):

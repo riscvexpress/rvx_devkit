@@ -23,7 +23,7 @@ include ${RVX_UTIL_HOME}/template_makefile.mh
 
 -include ./rvx_each.mh
 
-NPX_TRANIER_HOME?=${XARVIS_HOME}/npx_trainer
+SNN_FORGE_HOME?=${XARVIS_HOME}/snn-forge
 
 PLATFORM_DIR = $(abspath ${CURDIR}/../..)
 
@@ -34,15 +34,18 @@ SSW_INFO_FILE = ${PLATFORM_DIR}/arch/ssw/src/ssw_info.h
 
 APP_CFG_DIR ?= ${CURDIR}/app
 APP_CFG_DIR_ABS = $(abspath ${APP_CFG_DIR})
-ALL_CFG_LIST=$(wildcard ${APP_CFG_DIR_ABS}/*.cfg)
-ALL_APP_CFG_LIST = $(filter-out %_preprocess.cfg, $(ALL_CFG_LIST))
-ALL_APP_CFG_NAME_LIST=$(basename $(notdir ${ALL_APP_CFG_LIST}))
+# app/<app>.snn.jsonc: the app (preprocess, train, network) for snn-forge
+# app/<app>.preprocess.jsonc: its preprocess part only, packed into the firmware; extracted from <app>.snn.jsonc if absent
+APP_CFG_SUFFIX = .snn.jsonc
+PREPROCESS_CFG_SUFFIX = .preprocess.jsonc
+ALL_APP_CFG_LIST = $(wildcard ${APP_CFG_DIR_ABS}/*${APP_CFG_SUFFIX})
+ALL_APP_CFG_NAME_LIST=$(patsubst %${APP_CFG_SUFFIX},%,$(notdir ${ALL_APP_CFG_LIST}))
 
 PARA_DIR ?= ${CURDIR}/result
 PARA_DIR_ABS = $(abspath ${PARA_DIR})
 
 check:
-	@echo ${NPX_TRANIER_HOME}
+	@echo ${SNN_FORGE_HOME}
 	@echo ${APP_CFG_DIR_ABS}
 	@echo ${ALL_APP_CFG_NAME_LIST}
 	@echo ${PARA_DIR_ABS}
@@ -57,7 +60,7 @@ clean:
 NUM_SAMPLE=1
 
 check_train_home:
-	$(if $(NPX_TRANIER_HOME), , $(error NPX_TRANIER_HOME is NOT defined))
+	$(if $(SNN_FORGE_HOME), , $(error SNN_FORGE_HOME is NOT defined))
 
 app_list:
 	@echo ${ALL_APP_CFG_NAME_LIST}
@@ -69,48 +72,48 @@ ${ALL_APP_CFG_NAME_LIST}:%: check_train_home %.train %.after_train
 $(addsuffix .after_train, ${ALL_APP_CFG_NAME_LIST}):%.after_train: %.riscv %.sample %.opt %.gen_file
 
 $(addsuffix .train, ${ALL_APP_CFG_NAME_LIST}):%.train:
-ifdef NPX_TRANIER_HOME
-	cd ${NPX_TRANIER_HOME} && make --no-print-directory train CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS}
+ifdef SNN_FORGE_HOME
+	cd ${SNN_FORGE_HOME} && make --no-print-directory train CFG_FILE="${APP_CFG_DIR_ABS}/$(*)${APP_CFG_SUFFIX}" RESULT_DIR=${PARA_DIR_ABS}
 endif
 
 $(addsuffix .reset, ${ALL_APP_CFG_NAME_LIST}):%.reset:
-ifdef NPX_TRANIER_HOME
-	cd ${NPX_TRANIER_HOME} && make --no-print-directory reset CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS}
+ifdef SNN_FORGE_HOME
+	cd ${SNN_FORGE_HOME} && make --no-print-directory reset CFG_FILE="${APP_CFG_DIR_ABS}/$(*)${APP_CFG_SUFFIX}" RESULT_DIR=${PARA_DIR_ABS}
 endif
 
 $(addsuffix .riscv, ${ALL_APP_CFG_NAME_LIST}):%.riscv:
-ifdef NPX_TRANIER_HOME
-	cd ${NPX_TRANIER_HOME} && make --no-print-directory riscv CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS}
+ifdef SNN_FORGE_HOME
+	cd ${SNN_FORGE_HOME} && make --no-print-directory riscv CFG_FILE="${APP_CFG_DIR_ABS}/$(*)${APP_CFG_SUFFIX}" RESULT_DIR=${PARA_DIR_ABS}
 endif
 
 $(addsuffix .sample, ${ALL_APP_CFG_NAME_LIST}):%.sample:
-ifdef NPX_TRANIER_HOME
-	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_files ${PARA_DIR_ABS}/$(*)/riscv *_sample_*.*
-	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_files ${PARA_DIR_ABS}/$(*)/riscv *_layeroutput_*.*
-	cd ${NPX_TRANIER_HOME} && make --no-print-directory sample CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS} NUM_SAMPLE=${NUM_SAMPLE}
+ifdef SNN_FORGE_HOME
+	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_file_pattern ${PARA_DIR_ABS}/$(*)/riscv "*_sample_*.*"
+	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_file_pattern ${PARA_DIR_ABS}/$(*)/riscv "*_layeroutput_*.*"
+	cd ${SNN_FORGE_HOME} && make --no-print-directory sample CFG_FILE="${APP_CFG_DIR_ABS}/$(*)${APP_CFG_SUFFIX}" RESULT_DIR=${PARA_DIR_ABS} NUM_SAMPLE=${NUM_SAMPLE}
 endif
 
 $(addsuffix .tv, ${ALL_APP_CFG_NAME_LIST}):%.tv:
-ifdef NPX_TRANIER_HOME
-	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_files ${PARA_DIR_ABS}/$(*)/riscv *_sample_*.*
-	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_files ${PARA_DIR_ABS}/$(*)/riscv *_layeroutput_*.*
-	cd ${NPX_TRANIER_HOME} && make --no-print-directory tv CFG_FILE="${APP_CFG_DIR_ABS}/$(*).cfg" RESULT_DIR=${PARA_DIR_ABS} NUM_SAMPLE=${NUM_SAMPLE}
+ifdef SNN_FORGE_HOME
+	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_file_pattern ${PARA_DIR_ABS}/$(*)/riscv "*_sample_*.*"
+	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_file_pattern ${PARA_DIR_ABS}/$(*)/riscv "*_layeroutput_*.*"
+	cd ${SNN_FORGE_HOME} && make --no-print-directory tv CFG_FILE="${APP_CFG_DIR_ABS}/$(*)${APP_CFG_SUFFIX}" RESULT_DIR=${PARA_DIR_ABS} NUM_SAMPLE=${NUM_SAMPLE}
 endif
 
 $(addsuffix .opt, ${ALL_APP_CFG_NAME_LIST}):%.opt:
-	@cd ${RVX_DEVKIT_HOME}/util && ${PYTHON3_CMD} ./generate_npx_operator_info.py -cfg "${APP_CFG_DIR_ABS}/$(*).cfg" -ssw_info ${SSW_INFO_FILE} -o ${PARA_DIR_ABS} -s _operator
+	@cd ${RVX_DEVKIT_HOME}/util && ${PYTHON3_CMD} ./generate_npx_operator_info.py -cfg "${APP_CFG_DIR_ABS}/$(*)${APP_CFG_SUFFIX}" -ssw_info ${SSW_INFO_FILE} -o ${PARA_DIR_ABS} -s .operator
 
 $(addsuffix .gen_file, ${ALL_APP_CFG_NAME_LIST}):%.gen_file: %.clean_generated
 	@cd ${UTIL_DIR} && make --no-print-directory fakefile
 	@cd ${UTIL_DIR} && make --no-print-directory generated
 	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py mkdir ${RESULT_DIR}
-	$(if $(wildcard ${APP_CFG_DIR_ABS}/$(*)_preprocess.cfg),,@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/extract_cfg_section.py -i ${APP_CFG_DIR_ABS}/$(*).cfg -o ${RESULT_DIR}/$(*)_preprocess.cfg -s preprocess)
-	@cd ${FAKEFIE_DIR} && make --no-print-directory convert FILE_LIST="$(firstword $(wildcard ${APP_CFG_DIR_ABS}/$(*)_preprocess.cfg) ${RESULT_DIR}/$(*)_preprocess.cfg)" RESULT_DIR=${RESULT_DIR}
+	$(if $(wildcard ${APP_CFG_DIR_ABS}/$(*)${PREPROCESS_CFG_SUFFIX}),,@${PYTHON3_CMD} ${RVX_DEVKIT_HOME}/util/extract_npx_preprocess.py -i ${APP_CFG_DIR_ABS}/$(*)${APP_CFG_SUFFIX} -o ${RESULT_DIR}/$(*)${PREPROCESS_CFG_SUFFIX})
+	@cd ${FAKEFIE_DIR} && make --no-print-directory convert FILE_LIST="$(firstword $(wildcard ${APP_CFG_DIR_ABS}/$(*)${PREPROCESS_CFG_SUFFIX}) ${RESULT_DIR}/$(*)${PREPROCESS_CFG_SUFFIX})" RESULT_DIR=${RESULT_DIR}
 	@cd ${FAKEFIE_DIR} && make --no-print-directory convert FILE_LIST="$(wildcard ${PARA_DIR_ABS}/$(*)/riscv/$(*)*.bin)" RESULT_DIR=${RESULT_DIR}
-	@cd ${FAKEFIE_DIR} && make --no-print-directory convert FILE_LIST="$(wildcard ${PARA_DIR_ABS}/$(*)/riscv/$(*)*.cfg)" RESULT_DIR=${RESULT_DIR}
+	@cd ${FAKEFIE_DIR} && make --no-print-directory convert FILE_LIST="$(wildcard ${PARA_DIR_ABS}/$(*)/riscv/$(*)*.json ${PARA_DIR_ABS}/$(*)/riscv/$(*)*.jsonc)" RESULT_DIR=${RESULT_DIR}
 
 $(addsuffix .clean_generated, ${ALL_APP_CFG_NAME_LIST}):%.clean_generated:
-	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_files ${RESULT_DIR} $(*)_*_file.*
+	@${PYTHON3_CMD} ${RVX_UTIL_HOME}/os_util.py rm_file_pattern ${RESULT_DIR} "$(*)_*_file.*"
 
 clean_generated:
 	@cd ${RESULT_DIR}/.. && rm -rf npx

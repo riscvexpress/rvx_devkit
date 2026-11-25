@@ -43,12 +43,9 @@ ifeq ($(USE_FREERTOS),true)
 	-include ${RVX_SSW_HOME}/third_party/FreeRTOS/env/set_env.mh
 endif
 
-USE_TEXT_PARSER ?= false
-ifeq ($(USE_TEXT_PARSER),true)
-  ifeq ($(USE_FAKEFILE),false)
-    $(error enable USE_FAKEFILE in rvx_each.mh)
-  endif
-	-include ${RVX_SSW_HOME}/third_party/text_parser/env/set_env.mh
+USE_CJSON ?= false
+ifeq ($(USE_CJSON),true)
+	-include ${RVX_SSW_HOME}/third_party/cjson/env/set_env.mh
 endif
 
 USE_FLASH_FS ?= false
@@ -62,15 +59,7 @@ ifeq ($(USE_NPX),true)
   ifeq ($(USE_FAKEFILE),false)
     $(error enable USE_FAKEFILE in rvx_each.mh)
   endif
-  ifeq ($(USE_TEXT_PARSER),false)
-    $(error enable USE_TEXT_PARSER in rvx_each.mh)
-  endif
 	-include ${RVX_SSW_HOME}/npx/env/set_env.mh
-endif
-
-USE_DARKNET ?= false
-ifeq ($(USE_DARKNET),true)
-	-include ${RVX_SSW_HOME}/third_party/darknet/env/set_env.mh
 endif
 
 ifndef USE_GENERATED

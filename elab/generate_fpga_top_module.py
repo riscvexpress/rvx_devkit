@@ -101,7 +101,7 @@ if __name__ == '__main__':
   
   # external_clk
   external_clk_valid_name_set = set()
-  for i, value in enumerate(imp_class_info['fpga_info']['extenral_clk_mhz'].split(',')):
+  for i, value in enumerate(imp_class_info['fpga_info']['external_clk_mhz'].split(',')):
     external_clk_valid_name_set.add(f'external_clk_{i}')
     if value[-1]=='d':
       external_clk_valid_name_set.add(f'external_clk_{i}_pair')

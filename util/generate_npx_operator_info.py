@@ -28,7 +28,7 @@ def gen_operator_info(app_cfg_path:Path, ssw_info_path:Path, output_dir_path:Pat
   text_parser = NpxCfgParser(app_cfg_path)
   operator_info = NpxCfgParser()
   for i, layer_option in enumerate(text_parser.layer_info_list):
-    cfg_section = operator_info.add_network(layer_option.name)
+    cfg_section = operator_info.add_network(layer_option.name, layer_option.node_name)
     if layer_option.name == 'Linear':
       if 'USE_DCA' in define_dict:
         cfg_section['operator'] = 'dca'
@@ -67,8 +67,12 @@ def gen_operator_info(app_cfg_path:Path, ssw_info_path:Path, output_dir_path:Pat
     else:
       assert 0, layer_option.name
 
-  operator_info_path = output_dir_path / (app_cfg_path.stem + suffix + app_cfg_path.suffix)
-  operator_info_path.write_text(str(operator_info), encoding='utf8')
+  if is_json_cfg(app_cfg_path):
+    operator_info_path = output_dir_path / (app_stem(app_cfg_path) + suffix + '.json')
+    operator_info_path.write_text(operator_info.to_json_text(), encoding='utf8')
+  else:
+    operator_info_path = output_dir_path / (app_cfg_path.stem + suffix + app_cfg_path.suffix)
+    operator_info_path.write_text(str(operator_info), encoding='utf8')
   
 if __name__ == '__main__':
   
@@ -95,7 +99,7 @@ if __name__ == '__main__':
   for app_cfg in app_cfg_list:
     app_cfg_path = Path(app_cfg)
     assert app_cfg_path.is_file(), app_cfg_path
-    output_dir_path = result_dir_path / app_cfg_path.stem / 'riscv'
+    output_dir_path = result_dir_path / app_stem(app_cfg_path) / 'riscv'
     if not output_dir_path.is_dir():
       output_dir_path.mkdir(parents=True, exist_ok=True)
     gen_operator_info(app_cfg_path=app_cfg_path, ssw_info_path=ssw_info_path, output_dir_path=output_dir_path, suffix=args.suffix)

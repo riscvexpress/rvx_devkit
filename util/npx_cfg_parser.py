@@ -4,14 +4,16 @@ import copy
 import os
 import re
 import ast
+import json
 from enum import Enum
 from typing import NamedTuple
 
 from npx_neuron_type import *
 
 class NpxCfgSection(dict):
-  def __init__(self, name:str=None):
+  def __init__(self, name:str=None, node_name:str=None):
     self.name = name
+    self.node_name = node_name
     
   @staticmethod
   def convert_value(text):
@@ -30,6 +32,87 @@ class NpxCfgSection(dict):
     for key, value in self.items():
       line_list.append(f'{key}={value}')
     return '\n'.join(line_list)
+
+APP_CFG_SUFFIX = '.snn.jsonc'
+APP_JSON_SUFFIX = '.snn.json'
+
+def app_stem(path:Path) -> str:
+  path = Path(path)
+  for suffix in (APP_CFG_SUFFIX, APP_JSON_SUFFIX):
+    if path.name.endswith(suffix):
+      return path.name[:-len(suffix)]
+  return path.stem
+
+def is_json_cfg(path:Path) -> bool:
+  return Path(path).suffix in ('.jsonc', '.json')
+
+JSON_RENAMED_KEYS = {'type': 'op'}
+JSON_RENAMED_KEYS_BACK = {value: key for key, value in JSON_RENAMED_KEYS.items()}
+
+def strip_jsonc(text:str) -> str:
+  result = []
+  i = 0
+  n = len(text)
+  while i < n:
+    c = text[i]
+    if c == '"':
+      j = i + 1
+      while j < n and text[j] != '"':
+        j += 2 if text[j] == '\\' else 1
+      result.append(text[i:j+1])
+      i = j + 1
+    elif text.startswith('//', i):
+      while i < n and text[i] != '\n':
+        i += 1
+    elif text.startswith('/*', i):
+      j = text.find('*/', i + 2)
+      if j < 0:
+        raise json.JSONDecodeError('unterminated /* comment', text, i)
+      result.append('\n' * text.count('\n', i, j))
+      i = j + 2
+    elif c == ',':
+      j = i + 1
+      while j < n and text[j] in ' \t\r\n':
+        j += 1
+      if j < n and text[j] in '}]':
+        i += 1
+      else:
+        result.append(c)
+        i += 1
+    else:
+      result.append(c)
+      i += 1
+  return ''.join(result)
+
+def json_to_python(value):
+  if isinstance(value, list):
+    return tuple(json_to_python(each) for each in value)
+  if isinstance(value, dict):
+    return {key: json_to_python(each) for key, each in value.items()}
+  return value
+
+def python_to_json(value):
+  if isinstance(value, (tuple, list)):
+    return [python_to_json(each) for each in value]
+  if isinstance(value, dict):
+    return {key: python_to_json(each) for key, each in value.items()}
+  if isinstance(value, Enum):
+    return value.name
+  return value
+
+def format_json(value, indent:int=0) -> str:
+  pad = '  ' * indent
+  if isinstance(value, dict):
+    if not value:
+      return '{}'
+    item_list = [f'{pad}  {json.dumps(key)}: {format_json(each, indent+1)}' for key, each in value.items()]
+    return '{\n' + ',\n'.join(item_list) + f'\n{pad}}}'
+  if isinstance(value, list):
+    if all(not isinstance(each, (dict, list)) for each in value):
+      return '[' + ', '.join(json.dumps(each) for each in value) + ']'
+    item_list = [f'{pad}  {format_json(each, indent+1)}' for each in value]
+    return '[\n' + ',\n'.join(item_list) + f'\n{pad}]'
+  return json.dumps(value)
 
 class SignedType(Enum):
   ERROR = -1
@@ -130,6 +213,9 @@ class NpxCfgParser():
   
   def parse_file(self, path:Path):
     assert path.is_file(), path
+    if is_json_cfg(path):
+      self.parse_json_text(path.read_text(encoding='utf8'), str(path))
+      return
     line_list = path.read_text(encoding='utf8').split('\n')
 
     current_section = None
@@ -152,6 +238,44 @@ class NpxCfgParser():
       else:
         current_section.add_option(line)
   
+  def parse_json_text(self, text:str, source:str='<string>'):
+    try:
+      root = json.loads(strip_jsonc(text))
+    except json.JSONDecodeError as error:
+      raise ValueError(f'{source}: {error}') from None
+    assert isinstance(root, dict), source
+    for key in ('preprocess', 'train', 'global'):
+      if key in root:
+        section = NpxCfgSection(key)
+        section.update(json_to_python(root[key]))
+        setattr(self, f'{key}_info', section)
+    for index, node in enumerate(root.get('nodes', [])):
+      assert isinstance(node, dict) and 'type' in node, f'{source}: node {index}'
+      node = json_to_python(node)
+      node_name = node.pop('name', None) or f'layer{index}'
+      section = NpxCfgSection(node.pop('type'), node_name)
+      for key, value in node.items():
+        section[JSON_RENAMED_KEYS_BACK.get(key, key)] = value
+      self.layer_info_list.append(section)
+
+  def to_json_dict(self) -> dict:
+    root = {}
+    for key in ('preprocess', 'train', 'global'):
+      section = getattr(self, f'{key}_info')
+      if section is not None:
+        root[key] = python_to_json(dict(section))
+    node_list = []
+    for index, section in enumerate(self.layer_info_list):
+      node = {'name': section.node_name or f'layer{index}', 'type': section.name}
+      for key, value in section.items():
+        node[JSON_RENAMED_KEYS.get(key, key)] = python_to_json(value)
+      node_list.append(node)
+    root['nodes'] = node_list
+    return root
+
+  def to_json_text(self) -> str:
+    return format_json(self.to_json_dict()) + '\n'
+
   def __str__(self) -> str:
     line_list = []
     if self.preprocess_info:
@@ -180,8 +304,8 @@ class NpxCfgParser():
     self.preprocess_info = NpxCfgSection('preprocess')
     return self.preprocess_info
   
-  def add_network(self, section_name:str):
-    self.layer_info_list.append(NpxCfgSection(section_name))
+  def add_network(self, section_name:str, node_name:str=None):
+    self.layer_info_list.append(NpxCfgSection(section_name, node_name))
     return self.layer_info_list[-1]
   
   def generate_preprocess_output_info(self):

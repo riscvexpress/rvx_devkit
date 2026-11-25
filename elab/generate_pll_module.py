@@ -56,7 +56,7 @@ class ElaboratedClockInfo():
         if key.startswith('clk_'):
           clk_name, clk_speed, _ = get_clock_info(key,value)
           imp_class_clock_info[clk_name] = int(clk_speed)
-      _ , self.external_clk_speed, self.external_clk_diff = get_clock_info('extenral_clk_mhz',fpga_info['extenral_clk_mhz'].split(',')[self.pll_index])
+      _ , self.external_clk_speed, self.external_clk_diff = get_clock_info('external_clk_mhz',fpga_info['external_clk_mhz'].split(',')[self.pll_index])
 
     clock_info_xml = dec_ip.find('clock_info')
     assert clock_info_xml
